@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <ProjectGuid>{12550E50-808B-4C3E-A502-E315D915D8CA}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <OutputPath>bin</OutputPath>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <TypeScriptToolsVersion>1.4</TypeScriptToolsVersion>
+    <UseIISExpress>true</UseIISExpress>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="assets\textures\characters\hero_spritesheet.png" />
+    <Content Include="assets\textures\characters\king.png" />
+    <Content Include="assets\tilesets\dw_tileset_32x32.png" />
+    <Content Include="assets\tilesets\modern_city_01_32x32.png" />
+    <Content Include="assets\tilesets\special_tiles.png" />
+    <Content Include="css\app.css" />
+    <Content Include="index.html" />
+    <Content Include="js\jquery-2.0.3.min.js" />
+    <Content Include="js\phaser.min.js" />
+    <Content Include="web.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <TypeScriptCompile Include="src\app.ts" />
+    <TypeScriptCompile Include="definitions\jquery.d.ts" />
+    <TypeScriptCompile Include="definitions\phaser.d.ts" />
+    <TypeScriptCompile Include="definitions\pixi.d.ts" />
+    <TypeScriptCompile Include="src\characters\Hero.ts" />
+    <TypeScriptCompile Include="src\input\Directions.ts" />
+    <TypeScriptCompile Include="src\sprites\AnimatedSprite.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\AnimationCellDefinition.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\AnimationDefinition.ts" />
+    <TypeScriptCompile Include="src\sprites\AnimationLoader.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\AnimationSpriteDefinition.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\SpriteDefinition.ts" />
+    <TypeScriptCompile Include="src\states\BootState.ts" />
+    <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
+    <TypeScriptCompile Include="src\states\MainMenuState.ts" />
+    <TypeScriptCompile Include="src\states\PreGameLoadingState.ts" />
+    <TypeScriptCompile Include="src\states\States.ts" />
+    <TypeScriptCompile Include="src\tilemap\GameMap.ts" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="js\phaser.map" />
+    <Content Include="assets\maps\level_1.json" />
+    <Content Include="assets\textures\characters\hero_spritesheet.sprites" />
+    <Content Include="assets\textures\characters\hero_spritesheet.anim" />
+    <Content Include="assets\textures\characters\king.anim" />
+    <Content Include="assets\textures\characters\king.sprites" />
+    <None Include="web.Debug.config">
+      <DependentUpon>web.config</DependentUpon>
+    </None>
+    <None Include="web.Release.config">
+      <DependentUpon>web.config</DependentUpon>
+    </None>
+  </ItemGroup>
+  <ItemGroup />
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">12.0</VisualStudioVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>kings_guard_archer_defense</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\WebApplications\Microsoft.WebApplication.targets')" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>64086</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost:64086/</IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptOutFile>js/app.js</TypeScriptOutFile>
+    <TypeScriptOutDir>js</TypeScriptOutDir>
+    <TypeScriptSourceRoot>D:\stuff\projects\kings-guard-archer-defense\kings-guard-archer-defense\src</TypeScriptSourceRoot>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TypeScriptRemoveComments>true</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>false</TypeScriptSourceMap>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
+</Project>
