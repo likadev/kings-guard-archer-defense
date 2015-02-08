@@ -15,3 +15,6 @@ pubspec.lock
 Thumbs.db
 *.pdb
 *.suo
+obj
+bin
+*.user
