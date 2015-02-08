@@ -7,9 +7,8 @@ You can play it <a href="https://likadev.github.io/kings-guard-archer-defense/">
 ### Languages, Frameworks, and Libraries
 
 * HTML5/CSS markup is used as a shell for the game instance.
-* <a href="https://www.dartlang.org/">Dart</a> is used to create the client-side game code. The Dart code is compiled to JavaScript.
-* The game framework used is <a href="https://phaser.io/">Phaser</a>.
-* Since we're developing in Dart, we must use the <a href="https://github.com/playif/play_phaser">play_phaser</a> Dart port of Phaser.
+* <a href="http://www.typescriptlang.org/">TypeScript</a> is used to create the client-side game code. The TypeScript code is compiled to JavaScript.
+* The game framework used is <a href="https://phaser.io/">Phaser</a>. Phaser provides a TypeScript definition file.
 
 
 ### Tools
