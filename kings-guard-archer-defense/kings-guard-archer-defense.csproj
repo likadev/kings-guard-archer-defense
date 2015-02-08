@@ -56,6 +56,10 @@
     <Content Include="assets\textures\characters\hero_spritesheet.anim" />
     <Content Include="assets\textures\characters\king.anim" />
     <Content Include="assets\textures\characters\king.sprites" />
+    <Content Include="assets\fonts\MedievalSharpBold.ttf" />
+    <Content Include="assets\fonts\MedievalSharpBoldOblique.ttf" />
+    <Content Include="assets\fonts\MedievalSharpBook.ttf" />
+    <Content Include="assets\fonts\MedievalSharpOblique.ttf" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

@@ -1,5 +1,33 @@
 ﻿@import url(https://fonts.googleapis.com/css?family=Roboto);
-@import url(http://openfontlibrary.org/face/medievalsharp);
+
+/* from openfreefonts */
+@font-face {
+    font-family: 'MedievalSharpBold';
+        src: url('/assets/fonts/MedievalSharpBold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+      }
+@font-face {
+    font-family: 'MedievalSharpBoldOblique';
+        src: url('/assets/fonts/MedievalSharpBoldOblique.ttf') format('truetype');
+    font-weight: bold;
+    font-style: italic;
+      }
+@font-face {
+    font-family: 'MedievalSharpOblique';
+        src: url('/assets/fonts/MedievalSharpOblique.ttf') format('truetype');
+    font-weight: normal;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'MedievalSharpBook';
+        src: url('/assets/fonts/MedievalSharpBook.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+
 
 html, body {
     width: 100%;
