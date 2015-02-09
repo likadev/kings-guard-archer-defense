@@ -13,11 +13,13 @@ var KGAD;
         function BootState() {
             _super.apply(this, arguments);
         }
+        BootState.prototype.init = function () {
+        };
         BootState.prototype.preload = function () {
         };
         BootState.prototype.create = function () {
             this.input.maxPointers = 1;
-            this.stage.disableVisibilityChange = true;
+            this.game.physics.enable(Phaser.Physics.ARCADE);
         };
         BootState.prototype.update = function () {
             var states = KGAD.States.Instance;
@@ -38,6 +40,7 @@ var KGAD;
         }
         MainMenuState.prototype.preload = function () {
             this.map = new KGAD.GameMap("level_1");
+            KGAD.Game.CurrentMap = this.map;
         };
         MainMenuState.prototype.create = function () {
         };
@@ -118,8 +121,8 @@ var KGAD;
         };
         GameSimulationState.prototype.create = function () {
             this.map.create();
-            var heroPos = this.map.toPixels(this.map.heroSpawnPoint);
-            var kingPos = this.map.toPixels(this.map.kingSpawnPoint);
+            var heroPos = this.map.toPixels(this.map.heroSpawnPoint).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
+            var kingPos = this.map.toPixels(this.map.kingSpawnPoint).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
             this.hero.position.set(heroPos.x, heroPos.y);
             this.king.position.set(kingPos.x, kingPos.y);
             for (var spriteKey in this.sprites) {
@@ -133,6 +136,7 @@ var KGAD;
         };
         GameSimulationState.prototype.update = function () {
             this.game.physics.arcade.collide(this.hero, this.map.collisionLayer);
+            this.game.physics.arcade.collide(this.hero, this.king);
         };
         return GameSimulationState;
     })(Phaser.State);
@@ -239,13 +243,25 @@ var KGAD;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Game, "CurrentMap", {
+            get: function () {
+                return Game.currentMap;
+            },
+            set: function (map) {
+                this.currentMap = map;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Game.instance = null;
+        Game.currentMap = null;
         return Game;
     })(Phaser.Game);
     KGAD.Game = Game;
 })(KGAD || (KGAD = {}));
 window.onload = function () {
     try {
+        $('#content').html('');
         var game = new KGAD.Game(640, 640, 'content');
     }
     finally {
@@ -255,19 +271,135 @@ window.onload = function () {
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
+    var Actions = (function () {
+        function Actions() {
+        }
+        Object.defineProperty(Actions, "Standing", {
+            get: function () {
+                return 'face';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Moving", {
+            get: function () {
+                return 'walk';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Charging", {
+            get: function () {
+                return 'charge';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Firing", {
+            get: function () {
+                return 'fire';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Casting", {
+            get: function () {
+                return 'cast';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Damaged", {
+            get: function () {
+                return 'damaged';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Dying", {
+            get: function () {
+                return 'dying';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Actions, "Dead", {
+            get: function () {
+                return 'dead';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return Actions;
+    })();
+    KGAD.Actions = Actions;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+/// <reference path="./Actions.ts" />
+var KGAD;
+(function (KGAD) {
+    var AnimationHelper = (function () {
+        function AnimationHelper() {
+        }
+        /**
+         *  Gets an animation based on a sprite's action and direction.
+         */
+        AnimationHelper.getAnimationFromAction = function (action, direction) {
+            var dir = parseInt(direction, 10);
+            var dirName = null;
+            switch (dir) {
+                case 0 /* Up */:
+                    dirName = "up";
+                    break;
+                case 1 /* Left */:
+                    dirName = "left";
+                    break;
+                case 2 /* Down */:
+                    dirName = "down";
+                    break;
+                case 3 /* Right */:
+                    dirName = "right";
+                    break;
+            }
+            var animationName = action + (dirName != null ? "_" + dirName : "");
+            return animationName;
+        };
+        /**
+         *  Based on a sprite's action/direction, return the animation name.
+         */
+        AnimationHelper.getCurrentAnimation = function (sprite) {
+            return AnimationHelper.getAnimationFromAction(sprite.action, sprite.direction);
+        };
+        return AnimationHelper;
+    })();
+    KGAD.AnimationHelper = AnimationHelper;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+/// <reference path="../input/AnimationHelper.ts" />
+var KGAD;
+(function (KGAD) {
     var AnimatedSprite = (function (_super) {
         __extends(AnimatedSprite, _super);
         function AnimatedSprite(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
             this.default_animation = 'face_down';
+            this.anchor.setTo(0.5);
+            this.action = KGAD.Actions.Standing;
+            this.direction = 2 /* Down */;
         }
         AnimatedSprite.prototype.init = function () {
+            this.default_animation = KGAD.AnimationHelper.getCurrentAnimation(this);
             var animation = this.animations.getAnimation(this.default_animation);
             if (animation != null) {
                 this.animations.play(this.default_animation);
             }
             this.game.physics.arcade.enable(this);
+            this.game.physics.arcade.enableBody(this);
             this.game.world.add(this);
+            this.body.collideWorldBounds = true;
+            this.body.immovable = true;
         };
         AnimatedSprite.prototype.update = function () {
             _super.prototype.update.call(this);
@@ -278,7 +410,75 @@ var KGAD;
 })(KGAD || (KGAD = {}));
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var Weapon = (function () {
+        function Weapon(game, key, cooldown, projectileSpeed) {
+            if (projectileSpeed === void 0) { projectileSpeed = 0; }
+            this.game = game;
+            this.key = key;
+            this.cooldown = cooldown;
+            this.projectileSpeed = projectileSpeed;
+            this.lastFire = 0;
+        }
+        Weapon.prototype.preload = function () {
+            if (!Weapon.projectileGroups.hasOwnProperty(this.key)) {
+                var url = 'assets/textures/weapons/' + this.key + '.png';
+                this.game.load.image(this.key, url);
+            }
+        };
+        Weapon.prototype.create = function () {
+            var group = Weapon.projectileGroups[this.key];
+            if (!Weapon.projectileGroups.hasOwnProperty(this.key)) {
+                group = this.game.add.group();
+                Weapon.projectileGroups[this.key] = group;
+            }
+            this.group = group;
+        };
+        Weapon.prototype.fire = function (x, y, direction) {
+            var _this = this;
+            var now = this.game.time.now;
+            if (this.canFire) {
+                var sprite = this.group.create(x, y, this.key);
+                sprite.anchor.setTo(0.5);
+                sprite.rotation = Phaser.Point.angle(direction, new Phaser.Point());
+                this.game.physics.arcade.enable(sprite);
+                this.game.physics.arcade.enableBody(sprite);
+                this.game.physics.arcade.velocityFromAngle(sprite.angle, this.projectileSpeed, sprite.body.velocity);
+                setTimeout(function () {
+                    if (sprite.alive) {
+                        _this.game.add.tween(sprite).to({ alpha: 0 }, 250).start().onComplete.addOnce(function () {
+                            sprite.kill();
+                            Weapon.activeProjectiles = Weapon.activeProjectiles.splice(Weapon.activeProjectiles.indexOf(sprite), 1);
+                        });
+                    }
+                }, 5000);
+                Weapon.activeProjectiles.push(sprite);
+                this.lastFire = now;
+                return true;
+            }
+            return false;
+        };
+        Object.defineProperty(Weapon.prototype, "canFire", {
+            get: function () {
+                return this.game.time.now - this.lastFire > this.cooldown;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Weapon.prototype.update = function () {
+            this.game.physics.arcade.collide(this.group, KGAD.Game.CurrentMap.collisionLayer);
+        };
+        Weapon.projectileGroups = {};
+        Weapon.activeProjectiles = [];
+        return Weapon;
+    })();
+    KGAD.Weapon = Weapon;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
 /// <reference path="../sprites/AnimatedSprite.ts" />
+/// <reference path="Weapon.ts" />
 var KGAD;
 (function (KGAD) {
     var Hero = (function (_super) {
@@ -286,14 +486,24 @@ var KGAD;
         function Hero(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
             this.keys = {};
+            this.canMove = true;
+            this.moveTowards = null;
             var keyboard = game.input.keyboard;
             this.keys[0 /* Up */] = [keyboard.addKey(Phaser.Keyboard.UP), keyboard.addKey(Phaser.Keyboard.W)];
             this.keys[1 /* Left */] = [keyboard.addKey(Phaser.Keyboard.LEFT), keyboard.addKey(Phaser.Keyboard.A)];
             this.keys[2 /* Down */] = [keyboard.addKey(Phaser.Keyboard.DOWN), keyboard.addKey(Phaser.Keyboard.S)];
             this.keys[3 /* Right */] = [keyboard.addKey(Phaser.Keyboard.RIGHT), keyboard.addKey(Phaser.Keyboard.D)];
+            this.fireKey = [keyboard.addKey(Phaser.Keyboard.Z), keyboard.addKey(Phaser.Keyboard.SPACEBAR)];
+            this.weapon = new KGAD.Weapon(game, 'basic_arrow', 250, 750);
+            this.weapon.preload();
         }
         Hero.prototype.init = function () {
+            var _this = this;
             _super.prototype.init.call(this);
+            this.body.immovable = false;
+            var cancelMovementCallback = function () {
+                _this.cancelMovement();
+            };
             for (var direction in this.keys) {
                 if (this.keys.hasOwnProperty(direction)) {
                     var keys = this.keys[direction];
@@ -302,33 +512,84 @@ var KGAD;
                         var dir = parseInt(direction, 10);
                         switch (dir) {
                             case 0 /* Up */:
-                                key.onDown.add(this.moveForward);
+                                key.onDown.add(function () {
+                                    _this.moveUp();
+                                });
                                 break;
                             case 1 /* Left */:
-                                key.onDown.add(this.moveLeft);
+                                key.onDown.add(function () {
+                                    _this.moveLeft();
+                                });
                                 break;
                             case 2 /* Down */:
-                                key.onDown.add(this.moveDown);
+                                key.onDown.add(function () {
+                                    _this.moveDown();
+                                });
                                 break;
                             case 3 /* Right */:
-                                key.onDown.add(this.moveRight);
+                                key.onDown.add(function () {
+                                    _this.moveRight();
+                                });
                                 break;
+                        }
+                        key.onUp.add(cancelMovementCallback);
+                    }
+                }
+            }
+            this.fireKey.forEach(function (value) {
+                value.onDown.add(function () {
+                    _this.fire();
+                });
+            });
+            this.weapon.create();
+        };
+        Hero.prototype.fire = function () {
+            this.weapon.fire(this.x, this.y, KGAD.MovementHelper.getPointFromDirection(this.direction));
+        };
+        Hero.prototype.handleMovement = function (direction) {
+            this.moveTowards = direction;
+            if (!this.canMove) {
+                return;
+            }
+            this.direction = direction;
+            this.action = KGAD.Actions.Moving;
+            this.nextAnimation = KGAD.AnimationHelper.getCurrentAnimation(this);
+            if (!KGAD.MovementHelper.move(this, direction)) {
+                this.action = KGAD.Actions.Standing;
+                this.nextAnimation = KGAD.AnimationHelper.getCurrentAnimation(this);
+            }
+            this.play(this.nextAnimation);
+        };
+        Hero.prototype.moveUp = function () {
+            this.handleMovement(0 /* Up */);
+        };
+        Hero.prototype.moveLeft = function () {
+            this.handleMovement(1 /* Left */);
+        };
+        Hero.prototype.moveDown = function () {
+            this.handleMovement(2 /* Down */);
+        };
+        Hero.prototype.moveRight = function () {
+            this.handleMovement(3 /* Right */);
+        };
+        Hero.prototype.cancelMovement = function () {
+            for (var dir in this.keys) {
+                if (this.keys.hasOwnProperty(dir)) {
+                    var keys = this.keys[dir];
+                    for (var i = 0, l = keys.length; i < l; ++i) {
+                        if (keys[i].isDown) {
+                            this.moveTowards = dir;
+                            return;
                         }
                     }
                 }
             }
+            this.moveTowards = null;
+            this.body.velocity.setTo(0, 0);
         };
-        Hero.prototype.moveForward = function () {
-            console.log('forward');
-        };
-        Hero.prototype.moveLeft = function () {
-            console.log('left');
-        };
-        Hero.prototype.moveDown = function () {
-            console.log('down');
-        };
-        Hero.prototype.moveRight = function () {
-            console.log('right');
+        Hero.prototype.update = function () {
+            _super.prototype.update.call(this);
+            this.weapon.update();
         };
         return Hero;
     })(KGAD.AnimatedSprite);
@@ -350,59 +611,56 @@ var KGAD;
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
-    var AnimationCellDefinition = (function () {
-        function AnimationCellDefinition(index, delay, sprites) {
-            if (sprites === void 0) { sprites = []; }
-            this.index = index;
-            this.delay = delay;
-            this.sprites = sprites;
+    var MovementHelper = (function () {
+        function MovementHelper() {
         }
-        return AnimationCellDefinition;
-    })();
-    KGAD.AnimationCellDefinition = AnimationCellDefinition;
-})(KGAD || (KGAD = {}));
-// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
-// is governed by a BSD-style license that can be found in the LICENSE file.
-var KGAD;
-(function (KGAD) {
-    var AnimationDefinition = (function () {
-        function AnimationDefinition(name, loops, cells) {
-            this.name = name;
-            this.loops = loops;
-            this.cells = cells;
-        }
-        /**
-         *  Parses animation data from a darkEditor animation XML file.
-         */
-        AnimationDefinition.fromXml = function (animXml) {
-            var animations = [];
-            $(animXml).find('anim').each(function (idx, el) {
-                var name = $(this).attr('name');
-                var loops = parseInt($(this).attr('loops'), 10);
-                var cells = [];
-                $('> cell', $(this)).each(function (i, e) {
-                    var index = parseInt($(this).attr('index'), 10);
-                    var delay = parseInt($(this).attr('delay'), 10);
-                    var sprites = [];
-                    $('> spr', $(this)).each(function (iidx, eel) {
-                        var spriteName = $(this).attr('name');
-                        var x = parseInt($(this).attr('x'), 10);
-                        var y = parseInt($(this).attr('y'), 10);
-                        var z = parseInt($(this).attr('z'), 10);
-                        var sprite = new KGAD.AnimationSpriteDefinition(spriteName, x, y, z);
-                        sprites.push(sprite);
-                    });
-                    var cell = new KGAD.AnimationCellDefinition(index, delay, sprites);
-                    cells.push(cell);
-                });
-                var animation = new AnimationDefinition(name, loops, cells);
-                animations.push(animation);
-            });
-            return animations;
+        MovementHelper.move = function (sprite, direction, speed) {
+            if (speed === void 0) { speed = 200; }
+            var map = KGAD.Game.CurrentMap;
+            var game = sprite.game;
+            var dir = parseInt(direction, 10);
+            var originPixels = sprite.position;
+            var origin = map.fromPixels(originPixels);
+            var dest = null;
+            switch (dir) {
+                case 0 /* Up */:
+                    dest = new Phaser.Point(origin.x, origin.y - 1);
+                    break;
+                case 1 /* Left */:
+                    dest = new Phaser.Point(origin.x - 1, origin.y);
+                    break;
+                case 2 /* Down */:
+                    dest = new Phaser.Point(origin.x, origin.y + 1);
+                    break;
+                case 3 /* Right */:
+                    dest = new Phaser.Point(origin.x + 1, origin.y);
+                    break;
+                default:
+                    throw new Error("Invalid direction: " + direction);
+            }
+            dest = map.toPixels(dest);
+            var startTime = game.time.now;
+            var maxTime = (Phaser.Point.distance(originPixels, dest) / speed) * 1000;
+            game.physics.arcade.moveToXY(sprite, dest.x, dest.y, speed, maxTime);
+            return true;
         };
-        return AnimationDefinition;
+        MovementHelper.getPointFromDirection = function (dir) {
+            var direction = parseInt(dir, 10);
+            switch (direction) {
+                case 0 /* Up */:
+                    return new Phaser.Point(0, -1);
+                case 1 /* Left */:
+                    return new Phaser.Point(-1, 0);
+                case 2 /* Down */:
+                    return new Phaser.Point(0, 1);
+                case 3 /* Right */:
+                    return new Phaser.Point(1, 0);
+            }
+            return new Phaser.Point();
+        };
+        return MovementHelper;
     })();
-    KGAD.AnimationDefinition = AnimationDefinition;
+    KGAD.MovementHelper = MovementHelper;
 })(KGAD || (KGAD = {}));
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
@@ -600,6 +858,64 @@ var KGAD;
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
+    var AnimationCellDefinition = (function () {
+        function AnimationCellDefinition(index, delay, sprites) {
+            if (sprites === void 0) { sprites = []; }
+            this.index = index;
+            this.delay = delay;
+            this.sprites = sprites;
+        }
+        return AnimationCellDefinition;
+    })();
+    KGAD.AnimationCellDefinition = AnimationCellDefinition;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var AnimationDefinition = (function () {
+        function AnimationDefinition(name, loops, cells) {
+            this.name = name;
+            this.loops = loops;
+            this.cells = cells;
+        }
+        /**
+         *  Parses animation data from a darkEditor animation XML file.
+         */
+        AnimationDefinition.fromXml = function (animXml) {
+            var animations = [];
+            $(animXml).find('anim').each(function (idx, el) {
+                var name = $(this).attr('name');
+                var loops = parseInt($(this).attr('loops'), 10);
+                var cells = [];
+                $('> cell', $(this)).each(function (i, e) {
+                    var index = parseInt($(this).attr('index'), 10);
+                    var delay = parseInt($(this).attr('delay'), 10);
+                    var sprites = [];
+                    $('> spr', $(this)).each(function (iidx, eel) {
+                        var spriteName = $(this).attr('name');
+                        var x = parseInt($(this).attr('x'), 10);
+                        var y = parseInt($(this).attr('y'), 10);
+                        var z = parseInt($(this).attr('z'), 10);
+                        var sprite = new KGAD.AnimationSpriteDefinition(spriteName, x, y, z);
+                        sprites.push(sprite);
+                    });
+                    var cell = new KGAD.AnimationCellDefinition(index, delay, sprites);
+                    cells.push(cell);
+                });
+                var animation = new AnimationDefinition(name, loops, cells);
+                animations.push(animation);
+            });
+            return animations;
+        };
+        return AnimationDefinition;
+    })();
+    KGAD.AnimationDefinition = AnimationDefinition;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
     var AnimationSpriteDefinition = (function () {
         function AnimationSpriteDefinition(name, x, y, z) {
             this.name = name;
@@ -768,7 +1084,7 @@ var KGAD;
                 return num / GameMap.TILE_WIDTH;
             }
             else {
-                return num.divide(GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT);
+                return new Phaser.Point(num.x / GameMap.TILE_WIDTH, num.y / GameMap.TILE_HEIGHT);
             }
         };
         /**
@@ -830,11 +1146,16 @@ var KGAD;
                 layer.visible = isVisible;
                 if (isCollisionLayer) {
                     this.collision = layer;
+                    var indices = [];
                     var tiles = layer.getTiles(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
                     for (var j = 0, k = tiles.length; j < k; ++j) {
                         var tile = tiles[j];
-                        if (!this.checkProperty(tile, "can_pass", true)) {
-                            tile.collides = true;
+                        if (!this.checkProperty(tile.properties, "can_pass", true)) {
+                            tile.canCollide = true;
+                            if (indices.indexOf(tile.index) < 0) {
+                                this.tilemap.setCollisionByIndex(tile.index, true, layer.index, true);
+                                indices.push(tile.index);
+                            }
                         }
                         else if (this.checkProperty(tile, "spawn_point")) {
                             this.heroSpawn = new Phaser.Point(tile.x, tile.y);
@@ -846,6 +1167,7 @@ var KGAD;
                 }
                 layer.resizeWorld();
             }
+            this.game.physics.arcade.setBoundsToWorld();
         };
         /**
          *  Checks if a property is set, and if so, if that property is true.
@@ -860,7 +1182,8 @@ var KGAD;
             }
             var result = defaultValue;
             if (props.hasOwnProperty(key)) {
-                result = !!props[key];
+                var value = props[key];
+                result = value === true || value === "true" || value === 1 || value === "1";
             }
             return result;
         };
