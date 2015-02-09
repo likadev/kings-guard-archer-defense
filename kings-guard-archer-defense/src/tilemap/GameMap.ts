@@ -78,7 +78,7 @@ module KGAD {
                 return (<number>num) / GameMap.TILE_WIDTH;
             }
             else {
-                return (<Phaser.Point>num).divide(GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT);
+                return new Phaser.Point(num.x / GameMap.TILE_WIDTH, num.y / GameMap.TILE_HEIGHT);
             }
             
         }
@@ -154,11 +154,16 @@ module KGAD {
 
                 if (isCollisionLayer) {
                     this.collision = layer;
+                    var indices: Array<number> = [];
                     var tiles: Phaser.Tile[] = layer.getTiles(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
                     for (var j = 0, k = tiles.length; j < k; ++j) {
                         var tile: Phaser.Tile = tiles[j];
-                        if (!this.checkProperty(tile, "can_pass", true)) {
-                            tile.collides = true;
+                        if (!this.checkProperty(tile.properties, "can_pass", true)) {
+                            tile.canCollide = true;
+                            if (indices.indexOf(tile.index) < 0) {
+                                this.tilemap.setCollisionByIndex(tile.index, true, layer.index, true);
+                                indices.push(tile.index);
+                            }
                         }
                         else if (this.checkProperty(tile, "spawn_point")) {
                             this.heroSpawn = new Phaser.Point(tile.x, tile.y);
@@ -167,10 +172,14 @@ module KGAD {
                             this.kingSpawn = new Phaser.Point(tile.x, tile.y);
                         }
                     }
+
+                    //this.tilemap.setCollision(indices, true, this.collision);
                 }
 
                 layer.resizeWorld();
             }
+
+            this.game.physics.arcade.setBoundsToWorld();
         }
 
         /**
@@ -186,7 +195,8 @@ module KGAD {
 
             var result: boolean = defaultValue;
             if (props.hasOwnProperty(key)) {
-                result = !!props[key];
+                var value = props[key];
+                result = value === true || value === "true" || value === 1 || value === "1";
             }
 
             return result;

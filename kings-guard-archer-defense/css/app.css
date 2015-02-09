@@ -27,8 +27,6 @@
     font-style: normal;
 }
 
-
-
 html, body {
     width: 100%;
     height: 100%;
@@ -49,6 +47,20 @@ html, body {
     bottom: 0;
     width: 600px;
     height: 600px;
+}
+
+#header {
+    margin: auto;
+    text-align: center;
+    color: white;
+}
+
+#header a {
+    color: yellow;
+}
+
+#header a:visited {
+    color: mediumpurple;
 }
 
 h1 {

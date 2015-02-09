@@ -26,8 +26,8 @@ module KGAD {
         create(): void {
             this.map.create();
 
-            var heroPos = <Phaser.Point>this.map.toPixels(this.map.heroSpawnPoint);
-            var kingPos = <Phaser.Point>this.map.toPixels(this.map.kingSpawnPoint);
+            var heroPos = (<Phaser.Point>this.map.toPixels(this.map.heroSpawnPoint)).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
+            var kingPos = (<Phaser.Point>this.map.toPixels(this.map.kingSpawnPoint)).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
 
             this.hero.position.set(heroPos.x, heroPos.y);
             this.king.position.set(kingPos.x, kingPos.y);
@@ -44,6 +44,7 @@ module KGAD {
 
         update(): void {
             this.game.physics.arcade.collide(this.hero, this.map.collisionLayer);
+            this.game.physics.arcade.collide(this.hero, this.king);
 
             
         }

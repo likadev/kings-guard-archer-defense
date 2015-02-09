@@ -3,12 +3,17 @@
 
 module KGAD {
     export class BootState extends Phaser.State {
+        init(): void {
+            
+        }
+
         preload(): void {
+            
         }
 
         create(): void {
             this.input.maxPointers = 1;
-            this.stage.disableVisibilityChange = true;
+            this.game.physics.enable(Phaser.Physics.ARCADE);
         }
 
         update(): void {

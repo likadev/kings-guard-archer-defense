@@ -7,9 +7,18 @@
 module KGAD {
     export class Game extends Phaser.Game {
         private static instance: Game = null;
+        private static currentMap: GameMap = null;
 
         public static get Instance(): Game {
             return Game.instance;
+        }
+
+        public static get CurrentMap(): GameMap {
+            return Game.currentMap;
+        }
+
+        public static set CurrentMap(map: GameMap) {
+            this.currentMap = map;
         }
 
         constructor(width: number, height: number, container: string) {
@@ -30,6 +39,7 @@ module KGAD {
 
 window.onload = () => {
     try {
+        $('#content').html('');
         var game = new KGAD.Game(640, 640, 'content');
     }
     finally {

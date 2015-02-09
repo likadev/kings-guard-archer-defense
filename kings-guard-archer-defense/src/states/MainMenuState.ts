@@ -11,6 +11,7 @@ module KGAD {
 
         preload(): void {
             this.map = new GameMap("level_1");
+            Game.CurrentMap = this.map;
         }
 
         create(): void {
