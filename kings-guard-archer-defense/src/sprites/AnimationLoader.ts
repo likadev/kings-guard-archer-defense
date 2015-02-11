@@ -17,9 +17,9 @@ module KGAD {
         /**
          *  Loads the assets for a spritesheet and returns the promise handler.
          */
-        public static load<T>(name: string, callback: (createdSprite: T) => any, typ): void {
-            var spritesUrl = 'assets/textures/characters/' + name + '.sprites';
-            var animUrl = 'assets/textures/characters/' + name + '.anim';
+        public static load<T>(name: string, callback: (createdSprite: T) => any, typ, baseurl='assets/textures/characters/'): void {
+            var spritesUrl = baseurl + name + '.sprites';
+            var animUrl = baseurl + name + '.anim';
 
             ++AnimationLoader.animationDataParsed;
 
@@ -27,7 +27,7 @@ module KGAD {
             var animLoader = AnimationLoader.loadItem(animUrl);
             $.when(spriteLoader, animLoader).done((spriteXml, animXml) => {
                 try {
-                    return AnimationLoader.parseXml(name, spriteXml, animXml, callback, typ);
+                    return AnimationLoader.parseXml(name, spriteXml, animXml, callback, typ, baseurl);
                 }
                 finally {
                     --AnimationLoader.animationDataParsed;
@@ -46,12 +46,12 @@ module KGAD {
         /**
          *  Parse spritesheet and animation XML data.
          */
-        public static parseXml<T>(name, spriteXml, animXml, callback: (createdSprite: T) => any, typ): any {
+        public static parseXml<T>(name, spriteXml, animXml, callback: (createdSprite: T) => any, typ, baseurl: string): any {
             var game = Game.Instance;
             var image: { name: string; url: string } = null;
             $(spriteXml).find('img').each(function (idx, e) {
                 var imgName = $(this).attr('name');
-                var url = 'assets/textures/characters/' + imgName;
+                var url = baseurl + imgName;
                 image = { name: name, url: url };
             });
 
@@ -221,6 +221,7 @@ module KGAD {
          */
         private static handleItemError(item: JQueryPromiseCallback<{}>): void {
             --AnimationLoader.loadCount;
+            --AnimationLoader.animationDataParsed;
 
             console.error(item);
         }

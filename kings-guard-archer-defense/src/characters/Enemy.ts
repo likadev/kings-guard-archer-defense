@@ -18,6 +18,8 @@ module KGAD {
         init(...args: any[]) {
             super.init(args);
 
+            this.body.immovable = true;
+
             if (args.length > 0) {
                 this.enemyType = args[0];
 

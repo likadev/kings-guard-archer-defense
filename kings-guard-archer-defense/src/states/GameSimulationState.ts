@@ -23,6 +23,8 @@ module KGAD {
         }
 
         preload(): void {
+            this.hero.weapon.preload();
+
             GameInfo.create(this.king, this.hero);
         }
 
@@ -71,6 +73,9 @@ module KGAD {
             this.game.physics.arcade.collide(projectiles.getActiveProjectiles(), this.enemyGenerator.enemies,(first, second) => {
                 this.handleProjectileCollision(first, second);
             });
+
+            this.hero.update();
+            this.king.update();
             
             var enemies = this.enemyGenerator.enemies;
             for (var i = 0, l = enemies.length; i < l; ++i) {

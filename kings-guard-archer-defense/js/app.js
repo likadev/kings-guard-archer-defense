@@ -91,6 +91,9 @@ var KGAD;
                 };
                 KGAD.AnimationLoader.load(name, callback, isHero ? KGAD.Hero : isEnemy ? KGAD.Enemy : KGAD.AnimatedSprite);
             }
+            KGAD.AnimationLoader.load('charge', function (s) {
+                _this.chargeSprite = s;
+            }, KGAD.AnimatedSprite, '/assets/textures/weapons/');
         };
         PreGameLoadingState.prototype.create = function () {
             this.enemyGenerator = new KGAD.EnemyGenerator();
@@ -99,6 +102,8 @@ var KGAD;
         PreGameLoadingState.prototype.update = function () {
             var states = KGAD.States.Instance;
             if (KGAD.AnimationLoader.done && this.ready) {
+                var hero = this.sprites['hero_spritesheet'];
+                hero.weapon.chargeSprite = this.chargeSprite;
                 states.switchTo(KGAD.States.GameSimulation, true, false, this.map, this.sprites, this.enemyGenerator);
             }
         };
@@ -123,6 +128,7 @@ var KGAD;
             this.king = this.sprites['king'];
         };
         GameSimulationState.prototype.preload = function () {
+            this.hero.weapon.preload();
             KGAD.GameInfo.create(this.king, this.hero);
         };
         GameSimulationState.prototype.create = function () {
@@ -161,6 +167,8 @@ var KGAD;
             this.game.physics.arcade.collide(projectiles.getActiveProjectiles(), this.enemyGenerator.enemies, function (first, second) {
                 _this.handleProjectileCollision(first, second);
             });
+            this.hero.update();
+            this.king.update();
             var enemies = this.enemyGenerator.enemies;
             for (var i = 0, l = enemies.length; i < l; ++i) {
                 enemies[i].update();
@@ -431,10 +439,10 @@ var KGAD;
                 args[_i - 0] = arguments[_i];
             }
             this.game.physics.enable(this, Phaser.Physics.ARCADE);
-            //this.game.physics.arcade.enable(this);
-            //this.game.physics.arcade.enableBody(this);
             this.body.collideWorldBounds = true;
             this.body.immovable = true;
+        };
+        AnimatedSprite.prototype.preload = function () {
         };
         AnimatedSprite.prototype.addToWorld = function () {
             if (!this.added) {
@@ -481,22 +489,33 @@ var KGAD;
 var KGAD;
 (function (KGAD) {
     var Weapon = (function () {
-        function Weapon(game, key, cooldown, projectileSpeed, power, aliveTime) {
+        function Weapon(game, key, cooldown, projectileSpeed, power, aliveTime, chargeSprite) {
             if (projectileSpeed === void 0) { projectileSpeed = 0; }
             if (power === void 0) { power = 1; }
             if (aliveTime === void 0) { aliveTime = 5000; }
+            if (chargeSprite === void 0) { chargeSprite = null; }
             this.game = game;
             this.key = key;
             this.cooldown = cooldown;
             this.projectileSpeed = projectileSpeed;
             this.power = power;
             this.aliveTime = aliveTime;
+            this.chargeSprite = chargeSprite;
             this.lastFire = 0;
+            this.charging = false;
+            this.chargeTime = 0;
+            this.minimumChargeTime = 150;
+            this.fullChargeTime = 1000;
         }
         Weapon.prototype.preload = function () {
-            if (this.game.cache.getImage(this.key) == null) {
+            if (!this.game.cache.checkImageKey(this.key)) {
                 var url = 'assets/textures/weapons/' + this.key + '.png';
                 this.game.load.image(this.key, url);
+            }
+            if (this.chargeSprite != null) {
+                this.chargeSprite.preload();
+                this.chargeSprite.init();
+                this.chargeSprite.visible = false;
             }
         };
         Object.defineProperty(Weapon.prototype, "canFire", {
@@ -513,8 +532,66 @@ var KGAD;
             enumerable: true,
             configurable: true
         });
-        Weapon.prototype.update = function () {
+        Weapon.prototype.isCharging = function () {
+            this.chargeTime = this.game.time.now - this.chargeStartTime;
+            if (this.chargeTime >= this.minimumChargeTime) {
+                return this.charging;
+            }
+            else {
+                return false;
+            }
+        };
+        Object.defineProperty(Weapon.prototype, "currentPower", {
+            get: function () {
+                this.chargeTime = (this.game.time.now - this.chargeStartTime) - this.minimumChargeTime;
+                var halfChargeTime = this.fullChargeTime / 2;
+                if (this.chargeTime > this.fullChargeTime) {
+                    this.chargeTime = this.fullChargeTime;
+                }
+                if (this.chargeTime < this.minimumChargeTime) {
+                    this.chargeTime = 0;
+                }
+                return this.chargeTime / halfChargeTime;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Weapon.prototype.startCharging = function () {
+            this.charging = true;
+            this.chargeTime = 0;
+            this.chargeStartTime = this.game.time.now;
+        };
+        Weapon.prototype.stopCharging = function () {
+            var power = this.currentPower;
+            this.cancelCharging();
+            return power;
+        };
+        Weapon.prototype.cancelCharging = function () {
+            this.charging = false;
+            this.chargeTime = 0;
+            if (this.chargeSprite != null) {
+                this.chargeSprite.animations.stop();
+                this.chargeSprite.visible = false;
+            }
+        };
+        Weapon.prototype.update = function (owner) {
             this.game.physics.arcade.collide(this.group, KGAD.Game.CurrentMap.collisionLayer);
+            if (this.chargeSprite != null) {
+                var currentAnim = this.chargeSprite.animations.currentAnim;
+                if (this.isCharging() && (currentAnim == null || !currentAnim.isPlaying || !this.chargeSprite.visible)) {
+                    this.chargeSprite.visible = true;
+                    this.chargeSprite.animations.play('mini_charge_down');
+                    this.game.add.existing(this.chargeSprite);
+                }
+                if (this.chargeSprite.visible) {
+                    var anglePoint = KGAD.MovementHelper.getPointFromDirection(owner.direction).multiply(15, 15);
+                    var position = Phaser.Point.add(anglePoint, owner.position);
+                    this.chargeSprite.position = position;
+                    if (this.currentPower >= 2) {
+                        this.chargeSprite.animations.play('charge_down');
+                    }
+                }
+            }
         };
         return Weapon;
     })();
@@ -538,6 +615,7 @@ var KGAD;
                 args[_i - 0] = arguments[_i];
             }
             _super.prototype.init.call(this, args);
+            this.body.immovable = true;
             if (args.length > 0) {
                 this.enemyType = args[0];
                 this.health = this.enemyType.health;
@@ -719,6 +797,10 @@ var KGAD;
             this.body.angle = this.angle;
             this.weapon = args[0];
             this.firedBy = args[1];
+            this.chargePower = args[2];
+            if (!this.chargePower) {
+                this.chargePower = 0;
+            }
             this.weapon.lastFireTime = this.game.time.now;
             this.direction = KGAD.MovementHelper.getDirectionFromAngle(this.rotation);
             if (this.direction == 0 /* Up */ || this.direction == 2 /* Down */) {
@@ -729,7 +811,14 @@ var KGAD;
         };
         Object.defineProperty(FiredProjectile.prototype, "power", {
             get: function () {
-                return this.weapon.power;
+                return Math.floor(this.weapon.power + (this.weapon.power * this.chargePower));
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(FiredProjectile.prototype, "speed", {
+            get: function () {
+                return Math.floor(this.weapon.projectileSpeed + this.weapon.projectileSpeed * (this.chargePower / 4));
             },
             enumerable: true,
             configurable: true
@@ -768,6 +857,9 @@ var KGAD;
             this.fireKey = [keyboard.addKey(Phaser.Keyboard.Z), keyboard.addKey(Phaser.Keyboard.SPACEBAR)];
             this.weapon = new KGAD.Weapon(game, 'basic_arrow', 250, 750);
             this.weapon.preload();
+            this.movementSpeed = this.originalMovementSpeed = 200;
+            this.moving = false;
+            this.chargeDirection = null;
         }
         Hero.prototype.init = function () {
             var _this = this;
@@ -810,14 +902,27 @@ var KGAD;
             }
             this.fireKey.forEach(function (value) {
                 value.onDown.add(function () {
-                    _this.fire();
+                    _this.fireKeyDown();
+                });
+                value.onUp.add(function () {
+                    _this.fireKeyUp();
                 });
             });
         };
-        Hero.prototype.fire = function () {
+        Hero.prototype.fireKeyDown = function () {
+            this.weapon.startCharging();
+            this.chargeDirection = this.direction;
+        };
+        Hero.prototype.fireKeyUp = function () {
+            var chargePower = this.weapon.stopCharging();
+            this.fire(chargePower);
+        };
+        Hero.prototype.fire = function (chargePower) {
             var projectiles = KGAD.GameInfo.CurrentGame.projectiles;
             if (this.weapon.canFire) {
-                projectiles.fire(this.x, this.y, this, this.weapon);
+                this.chargeDirection = null;
+                projectiles.fire(this.x, this.y, this, this.weapon, chargePower);
+                this.cancelMovement();
             }
         };
         Hero.prototype.handleMovement = function (direction) {
@@ -825,14 +930,23 @@ var KGAD;
             if (!this.canMove) {
                 return;
             }
-            this.direction = direction;
+            this.moving = true;
+            if (this.lastChargingState && this.chargeDirection != null) {
+                this.direction = this.chargeDirection;
+            }
+            else {
+                this.direction = direction;
+            }
             this.action = KGAD.Actions.Moving;
             this.nextAnimation = KGAD.AnimationHelper.getCurrentAnimation(this);
-            if (!KGAD.MovementHelper.move(this, direction)) {
+            var speed = this.weapon.isCharging() ? this.movementSpeed / 3 : this.movementSpeed;
+            if (!KGAD.MovementHelper.move(this, direction, speed)) {
                 this.action = KGAD.Actions.Standing;
                 this.nextAnimation = KGAD.AnimationHelper.getCurrentAnimation(this);
             }
-            this.play(this.nextAnimation);
+            if (this.nextAnimation !== this.animations.currentAnim.name) {
+                this.play(this.nextAnimation);
+            }
         };
         Hero.prototype.moveUp = function () {
             this.handleMovement(0 /* Up */);
@@ -852,18 +966,27 @@ var KGAD;
                     var keys = this.keys[dir];
                     for (var i = 0, l = keys.length; i < l; ++i) {
                         if (keys[i].isDown) {
-                            this.moveTowards = dir;
+                            this.direction = dir;
+                            this.handleMovement(this.direction);
                             return;
                         }
                     }
                 }
             }
             this.moveTowards = null;
+            this.moving = false;
             this.body.velocity.setTo(0, 0);
         };
         Hero.prototype.update = function () {
             _super.prototype.update.call(this);
-            this.weapon.update();
+            if (this.moving) {
+                if (this.lastChargingState !== this.weapon.isCharging()) {
+                    //this.chargeDirection = this.direction;
+                    this.lastChargingState = this.weapon.isCharging();
+                    this.handleMovement(this.direction);
+                }
+            }
+            this.weapon.update(this);
         };
         return Hero;
     })(KGAD.AnimatedSprite);
@@ -954,7 +1077,7 @@ var KGAD;
         /**
          *  Fire a projectile.
          */
-        ProjectileManager.prototype.fire = function (x, y, who, weapon, onKill) {
+        ProjectileManager.prototype.fire = function (x, y, who, weapon, chargePower, onKill) {
             var _this = this;
             var game = KGAD.Game.Instance;
             var direction = who.direction;
@@ -963,11 +1086,11 @@ var KGAD;
             var group = this.getGroupByType(weapon.key);
             var sprite = group.create(x, y, weapon.key);
             sprite.rotation = Phaser.Point.angle(KGAD.MovementHelper.getPointFromDirection(direction), new Phaser.Point());
-            sprite.init(weapon, who);
+            sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
             sprite.body.width = sprite.body.width - 1;
             sprite.body.height = sprite.body.height - 1;
-            game.physics.arcade.velocityFromAngle(sprite.angle, weapon.projectileSpeed, sprite.body.velocity);
+            game.physics.arcade.velocityFromAngle(sprite.angle, sprite.speed, sprite.body.velocity);
             setTimeout(function () {
                 _this.killProjectile(sprite);
             }, weapon.aliveTime);
@@ -1024,6 +1147,17 @@ var KGAD;
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
+    var ScriptEngine = (function () {
+        function ScriptEngine() {
+        }
+        return ScriptEngine;
+    })();
+    KGAD.ScriptEngine = ScriptEngine;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
     (function (Directions) {
         Directions[Directions["Up"] = 0] = "Up";
         Directions[Directions["Left"] = 1] = "Left";
@@ -1069,7 +1203,9 @@ var KGAD;
             dest = map.toPixels(dest);
             var startTime = game.time.now;
             var maxTime = (Phaser.Point.distance(originPixels, dest) / speed) * 1000;
-            game.physics.arcade.moveToXY(sprite, dest.x, dest.y, speed, maxTime);
+            var angle = MovementHelper.getAngleFromDirection(direction);
+            game.physics.arcade.velocityFromRotation(angle, speed, sprite.body.velocity);
+            //game.physics.arcade.moveToXY(sprite, dest.x, dest.y, speed);
             return true;
         };
         /**
@@ -1101,6 +1237,22 @@ var KGAD;
                 angle -= twopi;
             }
             return angle;
+        };
+        /**
+         *  Gets an angle in radians from a direction.
+         */
+        MovementHelper.getAngleFromDirection = function (dir) {
+            switch (parseInt(dir, 10)) {
+                case 0 /* Up */:
+                    return -Math.PI / 2;
+                case 1 /* Left */:
+                    return Math.PI;
+                case 3 /* Right */:
+                    return 0;
+                case 2 /* Down */:
+                    return -Math.PI * 3 / 2;
+            }
+            return 0;
         };
         /**
          *  Gets the best approximate direction based on the given angle.
@@ -1150,15 +1302,16 @@ var KGAD;
         /**
          *  Loads the assets for a spritesheet and returns the promise handler.
          */
-        AnimationLoader.load = function (name, callback, typ) {
-            var spritesUrl = 'assets/textures/characters/' + name + '.sprites';
-            var animUrl = 'assets/textures/characters/' + name + '.anim';
+        AnimationLoader.load = function (name, callback, typ, baseurl) {
+            if (baseurl === void 0) { baseurl = 'assets/textures/characters/'; }
+            var spritesUrl = baseurl + name + '.sprites';
+            var animUrl = baseurl + name + '.anim';
             ++AnimationLoader.animationDataParsed;
             var spriteLoader = AnimationLoader.loadItem(spritesUrl);
             var animLoader = AnimationLoader.loadItem(animUrl);
             $.when(spriteLoader, animLoader).done(function (spriteXml, animXml) {
                 try {
-                    return AnimationLoader.parseXml(name, spriteXml, animXml, callback, typ);
+                    return AnimationLoader.parseXml(name, spriteXml, animXml, callback, typ, baseurl);
                 }
                 finally {
                     --AnimationLoader.animationDataParsed;
@@ -1178,12 +1331,12 @@ var KGAD;
         /**
          *  Parse spritesheet and animation XML data.
          */
-        AnimationLoader.parseXml = function (name, spriteXml, animXml, callback, typ) {
+        AnimationLoader.parseXml = function (name, spriteXml, animXml, callback, typ, baseurl) {
             var game = KGAD.Game.Instance;
             var image = null;
             $(spriteXml).find('img').each(function (idx, e) {
                 var imgName = $(this).attr('name');
-                var url = 'assets/textures/characters/' + imgName;
+                var url = baseurl + imgName;
                 image = { name: name, url: url };
             });
             var spriteDefinitions = KGAD.SpriteDefinition.fromXml(spriteXml);
@@ -1331,6 +1484,7 @@ var KGAD;
          */
         AnimationLoader.handleItemError = function (item) {
             --AnimationLoader.loadCount;
+            --AnimationLoader.animationDataParsed;
             console.error(item);
         };
         AnimationLoader.loadCount = 0;
@@ -1730,5 +1884,17 @@ var KGAD;
         return GameMap;
     })();
     KGAD.GameMap = GameMap;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var Pathfinding = (function () {
+        function Pathfinding(map) {
+            this.map = map;
+        }
+        return Pathfinding;
+    })();
+    KGAD.Pathfinding = Pathfinding;
 })(KGAD || (KGAD = {}));
 //# sourceMappingURL=app.js.map

@@ -41,7 +41,10 @@ module KGAD {
             var startTime = game.time.now;
             var maxTime = (Phaser.Point.distance(originPixels, dest) / speed) * 1000;
 
-            game.physics.arcade.moveToXY(sprite, dest.x, dest.y, speed, maxTime);
+            var angle: number = MovementHelper.getAngleFromDirection(direction);
+            game.physics.arcade.velocityFromRotation(angle, speed, sprite.body.velocity);
+
+            //game.physics.arcade.moveToXY(sprite, dest.x, dest.y, speed);
 
             return true;
         }
@@ -83,6 +86,27 @@ module KGAD {
             }
 
             return angle;
+        }
+
+        /**
+         *  Gets an angle in radians from a direction.
+         */
+        public static getAngleFromDirection(dir: Directions): number {
+            switch (parseInt(<any>dir, 10)) {
+                case Directions.Up:
+                    return -Math.PI / 2;
+
+                case Directions.Left:
+                    return Math.PI;
+
+                case Directions.Right:
+                    return 0;
+
+                case Directions.Down:
+                    return -Math.PI * 3 / 2;
+            }
+
+            return 0;
         }
 
         /**

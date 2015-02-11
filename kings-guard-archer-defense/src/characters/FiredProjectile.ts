@@ -8,6 +8,7 @@ module KGAD {
         public firedBy: AnimatedSprite;
         public attachedTo: AnimatedSprite;
         public dead: boolean;
+        public chargePower: number;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
@@ -22,6 +23,11 @@ module KGAD {
 
             this.weapon = args[0];
             this.firedBy = args[1];
+            this.chargePower = args[2];
+
+            if (!this.chargePower) {
+                this.chargePower = 0;
+            }
 
             this.weapon.lastFireTime = this.game.time.now;
 
@@ -34,7 +40,13 @@ module KGAD {
         }
 
         public get power(): number {
-            return this.weapon.power;
+            return Math.floor(this.weapon.power + 
+                (this.weapon.power * this.chargePower));
+        }
+
+        public get speed(): number {
+            return Math.floor(this.weapon.projectileSpeed +
+                this.weapon.projectileSpeed * (this.chargePower / 4));
         }
 
         public attachTo(who: AnimatedSprite): void {

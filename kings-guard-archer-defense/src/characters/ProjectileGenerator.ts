@@ -106,7 +106,7 @@ module KGAD {
         /**
          *  Fire a projectile.
          */
-        public fire(x: number, y: number, who: AnimatedSprite, weapon: Weapon, onKill?: () => any): void {
+        public fire(x: number, y: number, who: AnimatedSprite, weapon: Weapon, chargePower: number, onKill?: () => any): void {
             var game = Game.Instance;
             var direction = who.direction;
             var p: Phaser.Point = MovementHelper.getPointFromDirection(direction);
@@ -115,12 +115,12 @@ module KGAD {
 
             var sprite: FiredProjectile = group.create(x, y, weapon.key);
             sprite.rotation = Phaser.Point.angle(MovementHelper.getPointFromDirection(direction), new Phaser.Point());
-            sprite.init(weapon, who);
+            sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
             sprite.body.width = sprite.body.width - 1;
             sprite.body.height = sprite.body.height - 1;
 
-            game.physics.arcade.velocityFromAngle(sprite.angle, weapon.projectileSpeed, sprite.body.velocity);
+            game.physics.arcade.velocityFromAngle(sprite.angle, sprite.speed, sprite.body.velocity);
 
             setTimeout(() => {
                 this.killProjectile(sprite);

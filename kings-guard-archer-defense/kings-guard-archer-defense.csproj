@@ -21,6 +21,7 @@
     <Content Include="assets\textures\characters\hero_spritesheet.png" />
     <Content Include="assets\textures\characters\king.png" />
     <Content Include="assets\textures\weapons\basic_arrow.png" />
+    <Content Include="assets\textures\weapons\charge.png" />
     <Content Include="assets\tilesets\dw_tileset_32x32.png" />
     <Content Include="assets\tilesets\modern_city_01_32x32.png" />
     <Content Include="assets\tilesets\special_tiles.png" />
@@ -42,6 +43,7 @@
     <TypeScriptCompile Include="src\characters\ProjectileGenerator.ts" />
     <TypeScriptCompile Include="src\characters\Weapon.ts" />
     <TypeScriptCompile Include="src\game\GameInfo.ts" />
+    <TypeScriptCompile Include="src\game\ScriptEngine.ts" />
     <TypeScriptCompile Include="src\input\Actions.ts" />
     <TypeScriptCompile Include="src\input\AnimationHelper.ts" />
     <TypeScriptCompile Include="src\input\Directions.ts" />
@@ -60,6 +62,7 @@
     <TypeScriptCompile Include="src\states\PreGameLoadingState.ts" />
     <TypeScriptCompile Include="src\states\States.ts" />
     <TypeScriptCompile Include="src\tilemap\GameMap.ts" />
+    <TypeScriptCompile Include="src\tilemap\Pathfinding.ts" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="js\phaser.map" />
@@ -73,6 +76,8 @@
     <Content Include="assets\fonts\MedievalSharpBook.ttf" />
     <Content Include="assets\fonts\MedievalSharpOblique.ttf" />
     <Content Include="assets\maps\scripts.json" />
+    <Content Include="assets\textures\weapons\charge.anim" />
+    <Content Include="assets\textures\weapons\charge.sprites" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

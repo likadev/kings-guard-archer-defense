@@ -22,10 +22,12 @@ module KGAD {
         init(...args: any[]): void {
             this.game.physics.enable(this, Phaser.Physics.ARCADE);
 
-            //this.game.physics.arcade.enable(this);
-            //this.game.physics.arcade.enableBody(this);
             this.body.collideWorldBounds = true;
             this.body.immovable = true;
+        }
+
+        public preload(): void {
+
         }
 
         public addToWorld(): void {

@@ -10,7 +10,12 @@ module KGAD {
         private fireKey: Array<Phaser.Key>;
         private canMove: boolean;
         private moveTowards: Directions;
+        private chargeDirection: Directions;
         private nextAnimation: string;
+        private originalMovementSpeed: number;
+        private movementSpeed: number;
+        private moving: boolean;
+        private lastChargingState: boolean;
         public weapon: Weapon;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
@@ -30,6 +35,10 @@ module KGAD {
             this.fireKey = [keyboard.addKey(Phaser.Keyboard.Z), keyboard.addKey(Phaser.Keyboard.SPACEBAR)];
             this.weapon = new Weapon(game, 'basic_arrow', 250, 750);
             this.weapon.preload();
+
+            this.movementSpeed = this.originalMovementSpeed = 200;
+            this.moving = false;
+            this.chargeDirection = null;
         }
 
         init(): void {
@@ -72,15 +81,34 @@ module KGAD {
             }
 
             this.fireKey.forEach((value) => {
-                value.onDown.add(() => { this.fire(); });
+                value.onDown.add(() => {
+                    this.fireKeyDown();
+                });
+
+                value.onUp.add(() => {
+                    this.fireKeyUp();
+                });
             });
         }
 
-        private fire() {
+        private fireKeyDown() {
+            this.weapon.startCharging();
+            this.chargeDirection = this.direction;
+        }
+
+        private fireKeyUp() {
+            var chargePower = this.weapon.stopCharging();
+            this.fire(chargePower);
+        }
+
+        private fire(chargePower: number) {
             var projectiles = GameInfo.CurrentGame.projectiles;
 
             if (this.weapon.canFire) {
-                projectiles.fire(this.x, this.y, this, this.weapon);
+                this.chargeDirection = null;
+                projectiles.fire(this.x, this.y, this, this.weapon, chargePower);
+                
+                this.cancelMovement();
             }
         }
 
@@ -91,16 +119,28 @@ module KGAD {
                 return;
             }
 
-            this.direction = direction;
+            this.moving = true;
+
+            if (this.lastChargingState && this.chargeDirection != null) {
+                this.direction = this.chargeDirection;
+            }
+            else {
+                this.direction = direction;
+            }
+
             this.action = Actions.Moving;
             this.nextAnimation = AnimationHelper.getCurrentAnimation(this);
 
-            if (!MovementHelper.move(this, direction)) {
+            var speed = this.weapon.isCharging() ? this.movementSpeed / 3 : this.movementSpeed;
+
+            if (!MovementHelper.move(this, direction, speed)) {
                 this.action = Actions.Standing;
                 this.nextAnimation = AnimationHelper.getCurrentAnimation(this);
             }
 
-            this.play(this.nextAnimation);
+            if (this.nextAnimation !== this.animations.currentAnim.name) {
+                this.play(this.nextAnimation);
+            }
         }
 
         private moveUp(): void {
@@ -125,7 +165,8 @@ module KGAD {
                     var keys: Array<Phaser.Key> = this.keys[dir];
                     for (var i = 0, l = keys.length; i < l; ++i) {
                         if (keys[i].isDown) {
-                            this.moveTowards = dir;
+                            this.direction = dir;
+                            this.handleMovement(this.direction);
                             return;
                         }
                     }
@@ -133,13 +174,22 @@ module KGAD {
             }
 
             this.moveTowards = null;
+            this.moving = false;
             this.body.velocity.setTo(0, 0);
         }
 
         update(): void {
             super.update();
 
-            this.weapon.update();
+            if (this.moving) {
+                if (this.lastChargingState !== this.weapon.isCharging()) {
+                    //this.chargeDirection = this.direction;
+                    this.lastChargingState = this.weapon.isCharging();
+                    this.handleMovement(this.direction);
+                }
+            }
+
+            this.weapon.update(this);
         }
     }
 }

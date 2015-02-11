@@ -7,6 +7,7 @@ module KGAD {
         private ready: boolean;
         private sprites: {};
         private enemyGenerator: EnemyGenerator;
+        private chargeSprite: AnimatedSprite;
 
         constructor() {
             super();
@@ -47,6 +48,10 @@ module KGAD {
 
                 AnimationLoader.load(name, callback, isHero ? Hero : isEnemy ? Enemy : AnimatedSprite);
             }
+
+            AnimationLoader.load('charge',(s: AnimatedSprite) => {
+                this.chargeSprite = s;
+            }, AnimatedSprite, '/assets/textures/weapons/');
         }
 
         create(): void {
@@ -57,6 +62,8 @@ module KGAD {
         update(): void {
             var states = States.Instance;
             if (AnimationLoader.done && this.ready) {
+                var hero: Hero = this.sprites['hero_spritesheet'];
+                hero.weapon.chargeSprite = this.chargeSprite;
                 states.switchTo(States.GameSimulation, true, false, this.map, this.sprites, this.enemyGenerator);
             }
         }
