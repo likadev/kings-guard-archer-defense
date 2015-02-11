@@ -93,7 +93,7 @@ var KGAD;
             }
             KGAD.AnimationLoader.load('charge', function (s) {
                 _this.chargeSprite = s;
-            }, KGAD.AnimatedSprite, '/assets/textures/weapons/');
+            }, KGAD.AnimatedSprite, 'assets/textures/weapons/');
         };
         PreGameLoadingState.prototype.create = function () {
             this.enemyGenerator = new KGAD.EnemyGenerator();

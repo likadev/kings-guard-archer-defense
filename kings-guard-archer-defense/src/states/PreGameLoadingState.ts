@@ -51,7 +51,7 @@ module KGAD {
 
             AnimationLoader.load('charge',(s: AnimatedSprite) => {
                 this.chargeSprite = s;
-            }, AnimatedSprite, '/assets/textures/weapons/');
+            }, AnimatedSprite, 'assets/textures/weapons/');
         }
 
         create(): void {
