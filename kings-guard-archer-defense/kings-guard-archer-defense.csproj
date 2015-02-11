@@ -35,8 +35,13 @@
     <TypeScriptCompile Include="definitions\jquery.d.ts" />
     <TypeScriptCompile Include="definitions\phaser.d.ts" />
     <TypeScriptCompile Include="definitions\pixi.d.ts" />
+    <TypeScriptCompile Include="src\characters\Enemy.ts" />
+    <TypeScriptCompile Include="src\characters\EnemyGenerator.ts" />
+    <TypeScriptCompile Include="src\characters\FiredProjectile.ts" />
     <TypeScriptCompile Include="src\characters\Hero.ts" />
+    <TypeScriptCompile Include="src\characters\ProjectileGenerator.ts" />
     <TypeScriptCompile Include="src\characters\Weapon.ts" />
+    <TypeScriptCompile Include="src\game\GameInfo.ts" />
     <TypeScriptCompile Include="src\input\Actions.ts" />
     <TypeScriptCompile Include="src\input\AnimationHelper.ts" />
     <TypeScriptCompile Include="src\input\Directions.ts" />
@@ -46,7 +51,9 @@
     <TypeScriptCompile Include="src\sprites\conversion\AnimationDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\AnimationLoader.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\AnimationSpriteDefinition.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\EnemySpecification.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\SpriteDefinition.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\WeaponSpecification.ts" />
     <TypeScriptCompile Include="src\states\BootState.ts" />
     <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
     <TypeScriptCompile Include="src\states\MainMenuState.ts" />
@@ -65,6 +72,7 @@
     <Content Include="assets\fonts\MedievalSharpBoldOblique.ttf" />
     <Content Include="assets\fonts\MedievalSharpBook.ttf" />
     <Content Include="assets\fonts\MedievalSharpOblique.ttf" />
+    <Content Include="assets\maps\scripts.json" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

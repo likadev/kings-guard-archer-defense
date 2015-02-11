@@ -6,6 +6,7 @@ module KGAD {
         private map: GameMap;
         private ready: boolean;
         private sprites: {};
+        private enemyGenerator: EnemyGenerator;
 
         constructor() {
             super();
@@ -23,6 +24,7 @@ module KGAD {
             var spritesheets = [
                 'hero_spritesheet',
                 'king',
+                'enemy',
             ];
 
             var total = spritesheets.length;
@@ -32,8 +34,9 @@ module KGAD {
                 var spritesheet = spritesheets[i];
                 var name = spritesheet;
                 var isHero = name === 'hero_spritesheet';
+                var isEnemy = name === 'enemy';
 
-                var callback = (sprite: Hero) => {
+                var callback = (sprite: AnimatedSprite) => {
                     this.sprites[sprite.key] = sprite;
 
                     --itemsToLoad;
@@ -42,17 +45,19 @@ module KGAD {
                     }
                 };
 
-                AnimationLoader.load(name, callback, isHero ? Hero : AnimatedSprite);
+                AnimationLoader.load(name, callback, isHero ? Hero : isEnemy ? Enemy : AnimatedSprite);
             }
         }
 
         create(): void {
+            this.enemyGenerator = new EnemyGenerator();
+            this.enemyGenerator.addType(new EnemySpecification("enemy", 64, 3, 0));
         }
 
         update(): void {
             var states = States.Instance;
             if (AnimationLoader.done && this.ready) {
-                states.switchTo(States.GameSimulation, true, false, this.map, this.sprites);
+                states.switchTo(States.GameSimulation, true, false, this.map, this.sprites, this.enemyGenerator);
             }
         }
     }

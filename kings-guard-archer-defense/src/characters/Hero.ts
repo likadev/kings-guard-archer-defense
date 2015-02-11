@@ -74,12 +74,14 @@ module KGAD {
             this.fireKey.forEach((value) => {
                 value.onDown.add(() => { this.fire(); });
             });
-
-            this.weapon.create();
         }
 
         private fire() {
-            this.weapon.fire(this.x, this.y, MovementHelper.getPointFromDirection(this.direction));
+            var projectiles = GameInfo.CurrentGame.projectiles;
+
+            if (this.weapon.canFire) {
+                projectiles.fire(this.x, this.y, this, this.weapon);
+            }
         }
 
         private handleMovement(direction: Directions) {

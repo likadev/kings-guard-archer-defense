@@ -3,6 +3,9 @@
 
 module KGAD {
     export class MovementHelper {
+        /**
+         *  Moves a sprite in the given direction.
+         */
         public static move(sprite: AnimatedSprite, direction: Directions, speed: number = 200): boolean {
             var map = Game.CurrentMap;
             var game = sprite.game;
@@ -43,6 +46,9 @@ module KGAD {
             return true;
         }
 
+        /**
+         *  Gets a point that is one pixel away in the given direction.
+         */
         public static getPointFromDirection(dir: Directions): Phaser.Point {
             var direction: number = parseInt(<any>dir, 10);
 
@@ -61,6 +67,50 @@ module KGAD {
             }
 
             return new Phaser.Point();
+        }
+
+        /**
+         *  Clamps an angle to a number between 0 and 2PI in radians.
+         */
+        private static clampAngle(angle: number): number {
+            var twopi = Math.PI * 2;
+            while (angle < 0) {
+                angle += twopi;
+            }
+
+            while (angle > twopi) {
+                angle -= twopi;
+            }
+
+            return angle;
+        }
+
+        /**
+         *  Gets the best approximate direction based on the given angle.
+         */
+        public static getDirectionFromAngle(angle: number): Directions {
+            var game = Game.Instance;
+            
+            angle = MovementHelper.clampAngle(angle);
+
+            var p = Phaser.Point.normalize(new Phaser.Point(Math.cos(angle), Math.sin(angle)));
+            console.log(angle * 180 / Math.PI + " => " + p.toString());
+            if (Math.abs(p.y) > Math.abs(p.x)) {
+                if (p.y < 0) {
+                    return Directions.Down;
+                }
+                else {
+                    return Directions.Up;
+                }
+            }
+            else {
+                if (p.x < 0) {
+                    return Directions.Left;
+                }
+                else {
+                    return Directions.Right;
+                }
+            }
         }
     }
 }

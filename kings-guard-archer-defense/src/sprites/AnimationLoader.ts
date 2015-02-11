@@ -132,6 +132,8 @@ module KGAD {
                 }
 
                 if (filesToLoad === 0) {
+                    game.cache.addJSON(name, null, animations);
+
                     var activator = new AniamtedSpriteActivator<T>(typ);
                     var finalSprite: any = activator.getNew(game, 0, 0, name);
                     for (var i = 0, l = animations.length; i < l; ++i) {
@@ -158,6 +160,22 @@ module KGAD {
             loader.onFileComplete.add(loaderCallback);
 
             return null;
+        }
+
+        public static addAnimationToSprite(sprite: Phaser.Sprite, animationData: any) {
+            var rate = 0;
+            if (typeof animationData === 'string') {
+                animationData = Game.Instance.cache.getJSON(animationData);
+                for (var j = 0, len = animationData.length; j < len; ++j) {
+                    var animation = animationData[j];
+                    rate = 1000 / (30 - (30 * (1 - animation.frameRate)));
+                    sprite.animations.add(animation.name, animation.frames, rate, animation.loops);
+                }
+            }
+            else {
+                rate = 1000 / (30 - (30 * (1 - animationData.frameRate)));
+                sprite.animations.add(animationData.name, animationData.frames, rate, animationData.loops);
+            }
         }
 
         /**

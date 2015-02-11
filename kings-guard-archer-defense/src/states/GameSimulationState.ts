@@ -5,7 +5,8 @@ module KGAD {
     export class GameSimulationState extends Phaser.State {
         private map: GameMap;
         private sprites: {};
-        private hero: AnimatedSprite;
+        private enemyGenerator: EnemyGenerator;
+        private hero: Hero;
         private king: AnimatedSprite;
 
         constructor() {
@@ -15,12 +16,14 @@ module KGAD {
         init(args: any[]) {
             this.map = args[0];
             this.sprites = args[1];
+            this.enemyGenerator = args[2];
 
             this.hero = this.sprites['hero_spritesheet'];
             this.king = this.sprites['king'];
         }
 
         preload(): void {
+            GameInfo.create(this.king, this.hero);
         }
 
         create(): void {
@@ -35,18 +38,54 @@ module KGAD {
             for (var spriteKey in this.sprites) {
                 if (this.sprites.hasOwnProperty(spriteKey)) {
                     var sprite = this.sprites[spriteKey];
+                    if (sprite instanceof Enemy) {
+                        continue;
+                    }
+
                     if (typeof sprite.init === 'function') {
                         sprite.init();
                     }
+
+                    if (typeof sprite.addToWorld === 'function') {
+                        sprite.addToWorld();
+                    }
                 }
             }
+
+            var enemySpawns = this.map.enemySpawns;
+            for (var i = 0, l = enemySpawns.length; i < l; ++i) {
+                enemySpawns[i] = (<Phaser.Point>this.map.toPixels(enemySpawns[i])).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
+            }
+
+            this.enemyGenerator.create('enemy', enemySpawns[0].x, enemySpawns[0].y);
+            this.enemyGenerator.create('enemy', enemySpawns[1].x, enemySpawns[1].y);
         }
 
         update(): void {
-            this.game.physics.arcade.collide(this.hero, this.map.collisionLayer);
-            this.game.physics.arcade.collide(this.hero, this.king);
+            var info = GameInfo.CurrentGame;
+            var projectiles = info.projectiles;
 
+            projectiles.update();
+
+            this.game.physics.arcade.collide(this.hero, [this.king, this.enemyGenerator.enemies, this.map.collisionLayer]);
+            this.game.physics.arcade.collide(projectiles.getActiveProjectiles(), this.enemyGenerator.enemies,(first, second) => {
+                this.handleProjectileCollision(first, second);
+            });
             
+            var enemies = this.enemyGenerator.enemies;
+            for (var i = 0, l = enemies.length; i < l; ++i) {
+                enemies[i].update();
+            }
+        }
+
+        render(): void {
+            
+        }
+
+        private handleProjectileCollision(projectile: FiredProjectile, sprite: Enemy) {
+            //sprite.attach(projectile);
+            projectile.attachTo(sprite);
+            sprite.damage(projectile.power);
         }
     }
 }

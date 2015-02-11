@@ -1,0 +1,33 @@
+﻿{
+    "scripts": {
+        "level_1": {
+            "waves": [
+                {
+                    "delay": 0,
+                    "sequence": [
+                        {
+                            "addEnemyTypes": [ "enemy" ],
+                            "every": 6000,
+                            "times": 6
+                        },
+                        {
+                            "every": 3000,
+                            "times": 4
+                        },
+                        {
+                            "every": 2000,
+                            "times": 8
+                        },
+                        {
+                            "delay": 2000,
+                            "boss": true,
+                            "removeEnemyTypes": [ "enemy" ],
+                            "addEnemyTypes": [ "boss" ],
+                            "spawnPointIndex": 0
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

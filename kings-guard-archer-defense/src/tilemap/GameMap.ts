@@ -15,10 +15,12 @@ module KGAD {
         private heroSpawn: Phaser.Point;
         private kingSpawn: Phaser.Point;
         private collision: Phaser.TilemapLayer;
+        public enemySpawns: Phaser.Point[];
 
         constructor(mapName: string) {
             this.game = Game.Instance;
             this.mapName = mapName;
+            this.enemySpawns = [];
 
             this.loadJsonData();
         }
@@ -58,6 +60,22 @@ module KGAD {
             return this.collision;
         }
 
+        public get width(): number {
+            return this.tilemap.width;
+        }
+
+        public get widthInPixels(): number {
+            return this.tilemap.widthInPixels;
+        }
+
+        public get height(): number {
+            return this.tilemap.height;
+        }
+
+        public get heightInPixels(): number {
+            return this.tilemap.heightInPixels;
+        }
+
         /**
          *  Converts a tile numeric value to pixels.
          */
@@ -87,7 +105,7 @@ module KGAD {
          *  Preloads assets. Should be called during the 'preload' Phaser phase.
          */
         public preload(): void {
-            var url: string = "assets/maps/" + this.mapName + ".json";
+            var url: string = "assets/maps/" + this.mapName + ".json?t=" + Date.now();
             this.game.load.tilemap(this.mapName, url, null, Phaser.Tilemap.TILED_JSON);
 
             for (var i = 0, l = this.tilesetNames.length; i < l; ++i) {
@@ -117,7 +135,7 @@ module KGAD {
          */
         private loadJsonData(): void {
             this.loaded = false;
-            var filename = "assets/maps/" + this.mapName + ".json";
+            var filename = "assets/maps/" + this.mapName + ".json?t=" + Date.now();
 
             $.getJSON(filename,(data: any, textStatus: string, jqXHR: JQueryXHR) => {
                 this.tilesetNames = new Array<string>();
@@ -170,6 +188,9 @@ module KGAD {
                         }
                         else if (this.checkProperty(tile, "king_spawn_point")) {
                             this.kingSpawn = new Phaser.Point(tile.x, tile.y);
+                        }
+                        else if (this.checkProperty(tile, "enemy_spawn")) {
+                            this.enemySpawns.push(new Phaser.Point(tile.x, tile.y));
                         }
                     }
 
