@@ -28,6 +28,7 @@ module KGAD {
             }
 
             if (this.chargeSprite != null) {
+                this.chargeSprite.canOccupyTiles = false;
                 this.chargeSprite.preload();
                 this.chargeSprite.init();
                 this.chargeSprite.visible = false;
@@ -50,6 +51,7 @@ module KGAD {
             else {
                 return false;
             }
+            //return this.charging;
         }
 
         public get currentPower(): number {

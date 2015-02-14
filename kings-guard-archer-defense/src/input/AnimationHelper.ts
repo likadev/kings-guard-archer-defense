@@ -40,5 +40,15 @@ module KGAD {
         public static getCurrentAnimation(sprite: AnimatedSprite): string {
             return AnimationHelper.getAnimationFromAction(sprite.action, sprite.direction);
         }
+
+        /**
+         *  Creates a tween that makes a sprite appear as if it's been damaged.
+         */
+        public static createDamageTween(obj: AnimatedSprite): Phaser.Tween {
+            var game = Game.Instance;
+            var tween = game.add.tween(obj).to({ tint: 0xFF3333 }, 35, Phaser.Easing.Cubic.InOut, false, 0, 2, true);
+            obj.tint = 0xFFFFFF;
+            return tween;
+        }
     }
 } 

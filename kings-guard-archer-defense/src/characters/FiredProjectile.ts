@@ -9,10 +9,13 @@ module KGAD {
         public attachedTo: AnimatedSprite;
         public dead: boolean;
         public chargePower: number;
+        private offsetPosition: Phaser.Point;
+        private originalDirection: Directions;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
             this.dead = false;
+            this.canOccupy = false;
         }
 
         init(...args: any[]) {
@@ -49,14 +52,36 @@ module KGAD {
                 this.weapon.projectileSpeed * (this.chargePower / 4));
         }
 
+        public get canOccupyTiles(): boolean {
+            return false;
+        }
+
         public attachTo(who: AnimatedSprite): void {
             this.attachedTo = who;
             this.dead = true;
+
+            this.game.time.events.add(3000,() => {
+                this.game.add.tween(this).to({ alpha: 0 }, 1000, Phaser.Easing.Linear.None, true).onComplete.addOnce(() => {
+                    this.kill();
+                });
+            }, this);
+
+            this.offsetPosition = Phaser.Point.subtract(this.attachedTo.position, this.position).divide(2, 2);
+            this.originalDirection = who.direction;
         }
 
         update(): void {
             if (this.attachedTo != null) {
-                this.alpha = Math.min(this.alpha, this.attachedTo.alpha);
+                this.position = Phaser.Point.subtract(this.attachedTo.position, this.offsetPosition);
+                if (this.attachedTo.direction != this.originalDirection) {
+                    //var angle = MovementHelper.getRotationFromDirections(this.originalDirection, this.attachedTo.direction);
+                    //this.rotation = angle;
+                    //Phaser.Point.rotate(this.position, this.attachedTo.x, this.attachedTo.y, angle);
+                    //this.rotation = -angle;
+                }
+                if (this.attachedTo.alpha < 1) {
+                    this.alpha = Math.min(this.alpha, this.attachedTo.alpha);
+                }
             }
         }
     }

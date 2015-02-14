@@ -26,6 +26,7 @@ module KGAD {
             this.hero.weapon.preload();
 
             GameInfo.create(this.king, this.hero);
+            GameInfo.CurrentGame.enemies = this.enemyGenerator;
         }
 
         create(): void {
@@ -61,6 +62,21 @@ module KGAD {
 
             this.enemyGenerator.create('enemy', enemySpawns[0].x, enemySpawns[0].y);
             this.enemyGenerator.create('enemy', enemySpawns[1].x, enemySpawns[1].y);
+
+            var spawnEnemy = null;
+            spawnEnemy = () => {
+                var idx = this.game.rnd.integerInRange(0, enemySpawns.length - 1);
+                var nextSpawnTime = 3000;
+                if (this.enemyGenerator.enemies.length <= 1) {
+                    nextSpawnTime = 500;
+                }
+
+                this.enemyGenerator.create('enemy', enemySpawns[idx].x, enemySpawns[idx].y);
+
+                this.game.time.events.add(3000, spawnEnemy, this);
+            }
+
+            this.game.time.events.add(5000, spawnEnemy, this);
         }
 
         update(): void {
@@ -69,28 +85,50 @@ module KGAD {
 
             projectiles.update();
 
-            this.game.physics.arcade.collide(this.hero, [this.king, this.enemyGenerator.enemies, this.map.collisionLayer]);
-            this.game.physics.arcade.collide(projectiles.getActiveProjectiles(), this.enemyGenerator.enemies,(first, second) => {
+            var physics = this.game.physics.arcade;
+
+            physics.collide(this.hero, [this.king, this.map.collisionLayer]);
+            physics.collide(this.hero, this.enemyGenerator.enemies);
+            physics.collide(projectiles.getActiveProjectiles(), this.enemyGenerator.enemies,(first, second) => {
                 this.handleProjectileCollision(first, second);
             });
+            physics.collide(this.enemyGenerator.enemies, this.enemyGenerator.enemies);
+            physics.collide(this.enemyGenerator.enemies, this.map.collisionLayer);
 
             this.hero.update();
             this.king.update();
+
+            this.enemyGenerator.update();
             
             var enemies = this.enemyGenerator.enemies;
             for (var i = 0, l = enemies.length; i < l; ++i) {
                 enemies[i].update();
             }
+
+            if (!this.king.alive) {
+                this.game.state.start(States.Boot, true, false);
+            }
         }
 
         render(): void {
-            
+            var enemies = this.enemyGenerator.enemies;
+            for (var i = 0, l = enemies.length; i < l; ++i) {
+                enemies[i].render();
+            }
+
+            this.hero.render();
+
+            this.map.debugRenderOccupiedGrid();
+            this.map.pathfinder.render();
         }
 
         private handleProjectileCollision(projectile: FiredProjectile, sprite: Enemy) {
-            //sprite.attach(projectile);
+            if (projectile.dead) {
+                return;
+            }
+
             projectile.attachTo(sprite);
-            sprite.damage(projectile.power);
+            sprite.inflictDamage(projectile.power, projectile.firedBy);
         }
     }
 }

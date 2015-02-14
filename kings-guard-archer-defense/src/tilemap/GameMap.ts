@@ -11,16 +11,19 @@ module KGAD {
         private loaded: boolean;
         private tilesetNames: Array<string>;
         private tilesets: Array<Phaser.Tileset>;
-        private tilemap: Phaser.Tilemap;
+        public tilemap: Phaser.Tilemap;
         private heroSpawn: Phaser.Point;
         private kingSpawn: Phaser.Point;
         private collision: Phaser.TilemapLayer;
+        public pathfinder: Pathfinding;
+        private occupiedGrid: Array<AnimatedSprite>;
         public enemySpawns: Phaser.Point[];
 
         constructor(mapName: string) {
             this.game = Game.Instance;
             this.mapName = mapName;
             this.enemySpawns = [];
+            this.occupiedGrid = [];
 
             this.loadJsonData();
         }
@@ -84,7 +87,7 @@ module KGAD {
                 return x * GameMap.TILE_WIDTH;
             }
             else {
-                return x.multiply(GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT);
+                return Phaser.Point.multiply(x, new Phaser.Point(GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT));
             }
         }
 
@@ -93,12 +96,26 @@ module KGAD {
          */
         public fromPixels(num: number|Phaser.Point): number|Phaser.Point {
             if (typeof num === 'number') {
-                return (<number>num) / GameMap.TILE_WIDTH;
+                return Math.floor((<number>num) / GameMap.TILE_WIDTH);
             }
             else {
-                return new Phaser.Point(num.x / GameMap.TILE_WIDTH, num.y / GameMap.TILE_HEIGHT);
+                return new Phaser.Point(Math.floor(num.x / GameMap.TILE_WIDTH), Math.floor(num.y / GameMap.TILE_HEIGHT));
             }
-            
+        }
+
+        /**
+         *  Finds the shortest path from the given point to the given point (in tiles).
+         */
+        public findPath(from: Phaser.Point, to: Phaser.Point, fullSearch: boolean = false): Phaser.Point[] {
+            if (from.x < 0 || from.x >= this.width || from.y < 0 || from.y >= this.height) {
+                throw new RangeError("Pathfinding: 'from' coordinate is out of range: (" + from.x + ", " + from.y + ") width=" + this.width + ", height=" + this.height);
+            }
+
+            if (to.x < 0 || to.x >= this.width || to.y < 0 || to.y >= this.height) {
+                throw new RangeError("Pathfinding: 'to' coordinate is out of range: (" + to.x + ", " + to.y + ")");
+            }
+
+            return this.pathfinder.findPath(from, to, fullSearch);
         }
 
         /**
@@ -128,6 +145,153 @@ module KGAD {
             }
 
             this.createLayers();
+
+            this.pathfinder = new Pathfinding(this);
+
+            this.occupiedGrid = [];
+            var size = this.width * this.height;
+            for (i = 0; i < size; ++i) {
+                this.occupiedGrid[i] = null;
+            }
+        }
+
+        /**
+         *  Checks if the given tile coordinate is out of bounds.
+         */
+        public isOutOfBounds(x: number|Phaser.Point, y?: number): boolean {
+            var _x, _y;
+            if (typeof x === 'number') {
+                _x = x;
+                _y = y;
+            }
+            else {
+                _x = x.x;
+                _y = x.y;
+            }
+
+            return (_x < 0 || _y < 0 || _x >= this.width || _y >= this.height);
+        }
+
+        /**
+         *  Check if the given tile coordinate is a wall.
+         */
+        public isWall(x: number, y: number): boolean {
+            var p: Phaser.Point = <Phaser.Point>this.toPixels(new Phaser.Point(x, y));
+            return this.isWallInPixelCoordinates(p.x, p.y);
+        }
+
+        /**
+         *  Checks if the given pixel coordinate is a wall.
+         */
+        public isWallInPixelCoordinates(x: number, y: number): boolean {
+            var collidingTiles = this.collisionLayer.getTiles(x, y, GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT, true);
+            return collidingTiles != null && collidingTiles.length > 0;
+        }
+
+        /**
+         *  Occupy a tile for yourself.
+         */
+        public occupy(x: number, y: number, sprite: AnimatedSprite): boolean {
+            if (this.isOutOfBounds(x, y) || this.isOccupied(x, y, sprite) || this.isWall(x, y)) {
+                return false;
+            }
+
+            this.unoccupy(sprite);
+            this.occupiedGrid[y * this.width + x] = sprite;
+            var tile = this.tilemap.getTile(x, y, this.collisionLayer, true);
+            if (tile != null) {
+                tile.canCollide = true;
+            }
+
+            return true;
+        }
+
+        /**
+         *  Un-occupy a spot on the map.
+         */
+        public unoccupy(x: number|AnimatedSprite, y?: number) {
+            if (typeof x === 'number') {
+                if (!this.isOutOfBounds(x, y)) {
+                    this.occupiedGrid[y * this.width + x] = null;
+                    var tile = this.tilemap.getTile(x, y, this.collisionLayer, true);
+                    if (tile != null) {
+                        tile.canCollide = false;
+                    }
+                }
+            }
+            else {
+                var idx: number = -1;
+                while (true) {
+                    idx = this.occupiedGrid.indexOf(x);
+                    if (idx >= 0) {
+                        var sprite = this.occupiedGrid[idx];
+                        this.occupiedGrid[idx] = null;
+                        var tile = this.tilemap.getTile(Math.floor(sprite.x / GameMap.TILE_WIDTH), Math.floor(sprite.y / GameMap.TILE_HEIGHT), this.collisionLayer, true);
+                        if (tile != null) {
+                            tile.canCollide = false;
+                        }
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        /**
+         *  Checks if the given tile is occupied.
+         */
+        public isOccupied(x: number, y: number, requestor?: AnimatedSprite): boolean {
+            if (this.isOutOfBounds(x, y)) {
+                return false;
+            }
+
+            var idx = y * this.width + x;
+
+            var sprite: Phaser.Sprite = this.occupiedGrid[idx];
+            if (sprite == null) {
+                return false;
+            }
+
+            if (sprite === requestor) {
+                return false;
+            }
+
+            if (!sprite.alive || !sprite.exists) {
+                this.occupiedGrid[idx] = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        public getWeightOfOccupiedTile(x: number, y: number): number {
+            if (this.isWall(x, y) || this.isOutOfBounds(x, y)) {
+                return 0;
+            }
+
+            if (!this.isOccupied(x, y)) {
+                return 1;
+            }
+
+            var sprite: AnimatedSprite = this.occupiedGrid[y * this.width + x];
+            if (sprite != null) {
+                return sprite.weight;
+            }
+
+            return 1;
+        }
+
+        public debugRenderOccupiedGrid() {
+            for (var y = 0; y < this.height; ++y) {
+                for (var x = 0; x < this.width; ++x) {
+                    var sprite: Phaser.Sprite = this.occupiedGrid[y * this.width + x];
+                    if (sprite != null) {
+                        var rect: Phaser.Rectangle = new Phaser.Rectangle(x * GameMap.TILE_WIDTH, y * GameMap.TILE_HEIGHT, GameMap.TILE_WIDTH,  GameMap.TILE_HEIGHT);
+                        this.game.debug.geom(rect, '#0000FF', false);
+                    }
+                }
+            }
         }
 
         /**

@@ -8,7 +8,11 @@ module KGAD {
         public default_animation: string = 'face_down';
         public action: Actions;
         public direction: Directions;
+        public tilePosition: Phaser.Point;
         private added: boolean;
+        protected lastPosition: Phaser.Point;
+        protected lastTilePosition: Phaser.Point;
+        protected canOccupy: boolean;
 
         constructor(game: Phaser.Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
@@ -17,17 +21,35 @@ module KGAD {
             this.action = Actions.Standing;
             this.direction = Directions.Down;
             this.added = false;
+            this.canOccupy = true;
         }
 
         init(...args: any[]): void {
             this.game.physics.enable(this, Phaser.Physics.ARCADE);
 
+            this.body.bounce.setTo(0.0);
             this.body.collideWorldBounds = true;
             this.body.immovable = true;
         }
 
+        public get canOccupyTiles(): boolean {
+            return this.canOccupy;
+        }
+
+        public set canOccupyTiles(val: boolean) {
+            this.canOccupy = val;
+        }
+
+        public get map(): GameMap {
+            return Game.CurrentMap;
+        }
+
         public preload(): void {
 
+        }
+
+        public get weight(): number {
+            return 2;
         }
 
         public addToWorld(): void {
@@ -42,12 +64,26 @@ module KGAD {
                 this.game.world.add(this);
                 this.added = true;
             }
+
+            this.lastPosition = this.position;
+            this.tilePosition = new Phaser.Point(Math.floor(this.x / GameMap.TILE_WIDTH), Math.floor(this.y / GameMap.TILE_HEIGHT));
+            this.lastTilePosition = this.tilePosition;
+
+            this.map.occupy(this.tilePosition.x, this.tilePosition.y, this);
+        }
+
+        public face(sprite: AnimatedSprite) {
+            var angle = this.game.physics.arcade.angleBetween(this.position, sprite.position);
+            this.direction = MovementHelper.getDirectionFromAngle(angle);
         }
 
         public updateAnimation(onComplete?: () => any): void {
             var animationName: string = AnimationHelper.getCurrentAnimation(this);
-            console.log('switching ' + this.key + " to " + animationName);
             if (animationName != null) {
+                if (animationName === this.animations.currentAnim.name) {
+                    return;
+                }
+
                 var player = null;
                 var animation = this.animations.getAnimation(animationName);
                 if (animation != null) {
@@ -68,9 +104,37 @@ module KGAD {
             }
         }
 
+        public inflictDamage(amount: number, source: AnimatedSprite): AnimatedSprite {
+            super.damage(amount);
+
+            return this;
+        }
+
+        preUpdate(): void {
+            super.preUpdate();
+        }
+
         update(): void {
             super.update();
 
+            var map = Game.CurrentMap;
+            this.tilePosition = <Phaser.Point>map.fromPixels(this.position);
+
+            if (this.canOccupyTiles) {
+                var map = Game.CurrentMap;
+                if (!this.tilePosition.equals(this.lastTilePosition)) {
+                    if (!map.occupy(this.tilePosition.x, this.tilePosition.y, this)) {
+                        this.position = this.lastPosition;
+                    }
+                    else {
+                        this.lastPosition = this.position;
+                        this.lastTilePosition = this.tilePosition;
+                    }
+                }
+            }
+        }
+
+        render(): void {
             
         }
     }

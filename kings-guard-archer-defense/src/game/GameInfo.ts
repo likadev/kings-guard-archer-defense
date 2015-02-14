@@ -5,6 +5,7 @@ module KGAD {
     export class GameInfo {
         private static instance: GameInfo;
         public projectiles: ProjectileManager;
+        public enemies: EnemyGenerator;
 
         constructor(public king: AnimatedSprite, public hero: Hero) {
             this.projectiles = new ProjectileManager();

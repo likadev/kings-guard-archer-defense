@@ -36,6 +36,7 @@ module KGAD {
                 var name = spritesheet;
                 var isHero = name === 'hero_spritesheet';
                 var isEnemy = name === 'enemy';
+                var isKing = name === 'king';
 
                 var callback = (sprite: AnimatedSprite) => {
                     this.sprites[sprite.key] = sprite;
@@ -46,7 +47,7 @@ module KGAD {
                     }
                 };
 
-                AnimationLoader.load(name, callback, isHero ? Hero : isEnemy ? Enemy : AnimatedSprite);
+                AnimationLoader.load(name, callback, isHero ? Hero : isEnemy ? Enemy : isKing ? King : AnimatedSprite);
             }
 
             AnimationLoader.load('charge',(s: AnimatedSprite) => {

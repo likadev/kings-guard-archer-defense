@@ -3,6 +3,15 @@
 
 module KGAD {
     export class MovementHelper {
+        static angleIncrements = [
+            { first: 0, second: Math.PI / 4, direction: Directions.Left },
+            { first: Math.PI / 4, second: (3 * Math.PI) / 4, direction: Directions.Up },
+            { first: (3 * Math.PI) / 4, second: (5 * Math.PI) / 4, direction: Directions.Right },
+            { first: (5 * Math.PI) / 4, second: (7 * Math.PI) / 4, direction: Directions.Down },
+            { first: (7 * Math.PI) / 4, second: (2 * Math.PI) + 1, direction: Directions.Left },
+        ];
+
+
         /**
          *  Moves a sprite in the given direction.
          */
@@ -72,6 +81,14 @@ module KGAD {
             return new Phaser.Point();
         }
 
+        public static getRotationFromDirections(dir1: Directions, dir2: Directions) {
+            var angle1 = MovementHelper.getAngleFromDirection(dir1);
+            var angle2 = MovementHelper.getAngleFromDirection(dir2);
+            var a = angle2 - angle1;
+            a = ((a + Math.PI) % Math.PI * 2) - Math.PI;
+            return a;
+        }
+
         /**
          *  Clamps an angle to a number between 0 and 2PI in radians.
          */
@@ -86,6 +103,10 @@ module KGAD {
             }
 
             return angle;
+        }
+
+        private static convertAngle(angle: number): number {
+            return MovementHelper.clampAngle(angle + Math.PI);
         }
 
         /**
@@ -114,27 +135,53 @@ module KGAD {
          */
         public static getDirectionFromAngle(angle: number): Directions {
             var game = Game.Instance;
-            
-            angle = MovementHelper.clampAngle(angle);
 
-            var p = Phaser.Point.normalize(new Phaser.Point(Math.cos(angle), Math.sin(angle)));
-            console.log(angle * 180 / Math.PI + " => " + p.toString());
-            if (Math.abs(p.y) > Math.abs(p.x)) {
-                if (p.y < 0) {
-                    return Directions.Down;
-                }
-                else {
-                    return Directions.Up;
-                }
+            var piOver4 = Math.PI / 4;
+            var threePiOver4 = piOver4 * 3;
+
+            if (angle <= piOver4 && angle > -piOver4) {
+                return Directions.Right;
+            }
+            else if (angle <= threePiOver4 && angle > piOver4) {
+                return Directions.Down;
+            }
+            else if (angle >= threePiOver4 || angle < -threePiOver4) {
+                return Directions.Left;
             }
             else {
-                if (p.x < 0) {
-                    return Directions.Left;
-                }
-                else {
-                    return Directions.Right;
+                return Directions.Up;
+            }
+
+            var origAngle = angle;
+            angle = MovementHelper.convertAngle(angle);
+
+            for (var i = 0, l = this.angleIncrements.length; i < l; ++i) {
+                var increment = this.angleIncrements[i];
+                if (angle >= increment.first && angle < increment.second) {
+                    return increment.direction;
                 }
             }
+
+            console.error('no direction found for angle: ' + angle);
+            return Directions.Right;
+        }
+
+        public static getNameOfDirection(direction: Directions): string {
+            switch (parseInt(<any>direction, 10)) {
+                case Directions.Up:
+                    return "up";
+
+                case Directions.Down:
+                    return "down";
+
+                case Directions.Left:
+                    return "left";
+
+                case Directions.Right:
+                    return "right";
+            }
+
+            return "null";
         }
     }
 }

@@ -42,7 +42,8 @@ module KGAD {
 
             var game = Game.Instance;
             var group = this.groups[enemyType.key];
-            var sprite: Enemy = group.create(x, y, enemyType.key);
+            //var sprite: Enemy = group.create(x, y, enemyType.key);
+            var sprite: Enemy = new Enemy(game, x, y, enemyType.key);
             AnimationLoader.addAnimationToSprite(sprite, enemyType.key);
 
             var king = GameInfo.CurrentGame.king;
@@ -63,6 +64,8 @@ module KGAD {
         private createGroup(enemy: EnemySpecification) {
             var game = Game.Instance;
             var group = game.add.group(null, 'enemy_' + enemy.key);
+            group.enableBody = true;
+            group.physicsBodyType = Phaser.Physics.ARCADE;
             group.classType = Enemy;
 
             this.groups[enemy.key] = group;
@@ -96,6 +99,14 @@ module KGAD {
 
             for (i = 0, l = enemiesToRemove.length; i < l; ++i) {
                 this.killEnemy(enemiesToRemove[i]);
+            }
+
+            var game = Game.Instance;
+            for (var key in this.groups) {
+                if (this.groups.hasOwnProperty(key)) {
+                    var group = this.groups[key];
+                    game.physics.arcade.collide(group, group);
+                }
             }
         }
     }

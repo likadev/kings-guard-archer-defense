@@ -27,11 +27,13 @@
     <Content Include="assets\tilesets\special_tiles.png" />
     <Content Include="css\app.css" />
     <Content Include="index.html" />
+    <Content Include="js\astar.js" />
     <Content Include="js\jquery-2.0.3.min.js" />
     <Content Include="js\phaser.min.js" />
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
+    <TypeScriptCompile Include="definitions\astar.d.ts" />
     <TypeScriptCompile Include="src\app.ts" />
     <TypeScriptCompile Include="definitions\jquery.d.ts" />
     <TypeScriptCompile Include="definitions\phaser.d.ts" />
@@ -40,10 +42,12 @@
     <TypeScriptCompile Include="src\characters\EnemyGenerator.ts" />
     <TypeScriptCompile Include="src\characters\FiredProjectile.ts" />
     <TypeScriptCompile Include="src\characters\Hero.ts" />
+    <TypeScriptCompile Include="src\characters\King.ts" />
     <TypeScriptCompile Include="src\characters\ProjectileGenerator.ts" />
     <TypeScriptCompile Include="src\characters\Weapon.ts" />
     <TypeScriptCompile Include="src\game\GameInfo.ts" />
     <TypeScriptCompile Include="src\game\ScriptEngine.ts" />
+    <TypeScriptCompile Include="src\game\ThreatTable.ts" />
     <TypeScriptCompile Include="src\input\Actions.ts" />
     <TypeScriptCompile Include="src\input\AnimationHelper.ts" />
     <TypeScriptCompile Include="src\input\Directions.ts" />
@@ -56,6 +60,7 @@
     <TypeScriptCompile Include="src\sprites\conversion\EnemySpecification.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\SpriteDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\WeaponSpecification.ts" />
+    <TypeScriptCompile Include="src\sprites\helpers\CollisionHelper.ts" />
     <TypeScriptCompile Include="src\states\BootState.ts" />
     <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
     <TypeScriptCompile Include="src\states\MainMenuState.ts" />
