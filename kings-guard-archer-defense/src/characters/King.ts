@@ -11,11 +11,11 @@ module KGAD {
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
 
-            this.health = 100;
+            this.health = 20;
         }
 
         public get weight(): number {
-            return 10;
+            return 1;
         }
 
         public inflictDamage(amount: number, source: AnimatedSprite): AnimatedSprite {

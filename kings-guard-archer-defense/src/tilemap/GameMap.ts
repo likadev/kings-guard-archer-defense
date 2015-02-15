@@ -189,6 +189,18 @@ module KGAD {
         }
 
         /**
+         *  Checks who the occupant of the given tile coordinate is.
+         */
+        public getOccupantOf(x: number, y: number): AnimatedSprite {
+            if (this.isOutOfBounds(x, y) || this.isWall(x, y) || !this.isOccupied(x, y)) {
+                return null;
+            }
+
+            var occupant = this.occupiedGrid[y * this.width + x];
+            return occupant;
+        }
+
+        /**
          *  Occupy a tile for yourself.
          */
         public occupy(x: number, y: number, sprite: AnimatedSprite): boolean {

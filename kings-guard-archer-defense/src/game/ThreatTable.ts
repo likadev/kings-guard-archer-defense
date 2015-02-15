@@ -77,6 +77,15 @@ module KGAD {
         }
 
         /**
+         *  
+         */
+        public update() {
+            if (this._highestThreatTarget != null && !this._highestThreatTarget.alive) {
+                this.doTableMaintenance();
+            }
+        }
+
+        /**
          *  Perform maintenance on the table, such as removing targets who no longer exist.
          */
         private doTableMaintenance(): void {
@@ -92,7 +101,6 @@ module KGAD {
                     removables.push(sprite);
                 }
                 else {
-                    console.log(entry);
                     if (entry.threat > highestThreat) {
                         highestThreatSprite = sprite;
                         highestThreat = entry.threat;

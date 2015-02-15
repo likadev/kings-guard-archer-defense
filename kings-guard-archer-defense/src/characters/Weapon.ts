@@ -10,6 +10,8 @@ module KGAD {
         private chargeStartTime: number;
         private minimumChargeTime: number;
         private fullChargeTime: number;
+        public frontSwing: number = 0;
+        public backSwing: number = 0;
 
         constructor(public game: Phaser.Game, public key: string, public cooldown: number, public projectileSpeed: number = 0,
             public power: number = 1, public aliveTime: number = 5000, public chargeSprite: AnimatedSprite = null) {
@@ -41,6 +43,11 @@ module KGAD {
 
         public set lastFireTime(time: number) {
             this.lastFire = time;
+        }
+
+        public isBackSwinging(): boolean {
+            var delta = this.game.time.now - this.lastFire;
+            return !(delta >= this.backSwing);
         }
 
         public isCharging(): boolean {

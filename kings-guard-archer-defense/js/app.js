@@ -164,11 +164,11 @@ var KGAD;
             spawnEnemy = function () {
                 var idx = _this.game.rnd.integerInRange(0, enemySpawns.length - 1);
                 var nextSpawnTime = 3000;
-                if (_this.enemyGenerator.enemies.length <= 1) {
+                if (_this.enemyGenerator.enemies.length <= 2) {
                     nextSpawnTime = 500;
                 }
                 _this.enemyGenerator.create('enemy', enemySpawns[idx].x, enemySpawns[idx].y);
-                _this.game.time.events.add(3000, spawnEnemy, _this);
+                _this.game.time.events.add(nextSpawnTime, spawnEnemy, _this);
             };
             this.game.time.events.add(5000, spawnEnemy, this);
         };
@@ -197,6 +197,7 @@ var KGAD;
             }
         };
         GameSimulationState.prototype.render = function () {
+            return;
             var enemies = this.enemyGenerator.enemies;
             for (var i = 0, l = enemies.length; i < l; ++i) {
                 enemies[i].render();
@@ -473,6 +474,7 @@ var KGAD;
             this.direction = 2 /* Down */;
             this.added = false;
             this.canOccupy = true;
+            this.blocked = false;
         }
         AnimatedSprite.prototype.init = function () {
             var args = [];
@@ -541,7 +543,7 @@ var KGAD;
                     player = this.animations.play(animationName);
                 }
                 else {
-                    this.action = KGAD.Actions.Standing;
+                    this.action = KGAD.Actions.Moving;
                     animationName = KGAD.AnimationHelper.getCurrentAnimation(this);
                     animation = this.animations.getAnimation(animationName);
                     if (animation != null) {
@@ -569,10 +571,15 @@ var KGAD;
                 if (!this.tilePosition.equals(this.lastTilePosition)) {
                     if (!map.occupy(this.tilePosition.x, this.tilePosition.y, this)) {
                         this.position = this.lastPosition;
+                        /*if (this.body) {
+                            this.body.velocity.setTo(0);
+                        }*/
+                        this.blocked = true;
                     }
                     else {
                         this.lastPosition = this.position;
                         this.lastTilePosition = this.tilePosition;
+                        this.blocked = false;
                     }
                 }
             }
@@ -600,6 +607,8 @@ var KGAD;
             this.power = power;
             this.aliveTime = aliveTime;
             this.chargeSprite = chargeSprite;
+            this.frontSwing = 0;
+            this.backSwing = 0;
             this.lastFire = 0;
             this.charging = false;
             this.chargeTime = 0;
@@ -632,6 +641,10 @@ var KGAD;
             enumerable: true,
             configurable: true
         });
+        Weapon.prototype.isBackSwinging = function () {
+            var delta = this.game.time.now - this.lastFire;
+            return !(delta >= this.backSwing);
+        };
         Weapon.prototype.isCharging = function () {
             this.chargeTime = this.game.time.now - this.chargeStartTime;
             if (this.chargeTime >= this.minimumChargeTime) {
@@ -708,10 +721,12 @@ var KGAD;
         __extends(Enemy, _super);
         function Enemy(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
+            this.debugStateName = "idle";
             this.attached = [];
             this.speed = 75;
             this.tilePosition = null;
             this.lastTilePosition = null;
+            this.rerouting = false;
         }
         Enemy.prototype.init = function () {
             var args = [];
@@ -721,6 +736,7 @@ var KGAD;
             _super.prototype.init.call(this, args);
             this.body.immovable = true;
             this.weapon = new KGAD.Weapon(this.game, 'short_sword', 1500, 0, 1, 0, null);
+            this.weapon.backSwing = 500;
             if (args.length > 0) {
                 this.enemyType = args[0];
                 this.health = this.enemyType.health;
@@ -736,13 +752,19 @@ var KGAD;
         };
         Object.defineProperty(Enemy.prototype, "weight", {
             get: function () {
-                if (this.action == KGAD.Actions.Firing) {
+                if (this.rerouting) {
                     return 0;
+                }
+                if (this.action == KGAD.Actions.Firing) {
+                    return 50;
                 }
                 else if (this.action == KGAD.Actions.Moving) {
                     return 2;
                 }
-                return 0;
+                else if (this.action == KGAD.Actions.Dying || this.action == KGAD.Actions.Dead) {
+                    return 1;
+                }
+                return 5;
             },
             enumerable: true,
             configurable: true
@@ -798,11 +820,16 @@ var KGAD;
             if (this.health <= 0) {
                 return;
             }
+            this.threatTable.update();
             if (this.currentTarget == null) {
                 this.currentTarget = this.threatTable.getHighestThreatTarget();
                 if (this.currentTarget == null) {
+                    this.debugStateName = 'no_target';
                     return;
                 }
+            }
+            if (this.weapon.isBackSwinging()) {
+                return;
             }
             if (!this.inRangeOf(this.currentTarget)) {
                 this.seekTarget();
@@ -812,6 +839,7 @@ var KGAD;
             }
         };
         Enemy.prototype.render = function () {
+            return;
             if (this.currentPath != null) {
                 for (var i = 0, l = this.currentPath.length; i < l; ++i) {
                     var node = KGAD.Game.CurrentMap.toPixels(this.currentPath[i]);
@@ -821,6 +849,7 @@ var KGAD;
             if (this.currentDestination != null) {
                 this.game.debug.geom(new Phaser.Rectangle(this.currentDestination.x - 16, this.currentDestination.y - 16, 32, 32), '#00FF00', false);
             }
+            this.game.debug.text(this.debugStateName, this.x - 16, this.y - 16, '#FFFFFF', '12px Courier new');
             //this.game.debug.geom(new Phaser.Rectangle(this.tilePosition.x * 32, this.tilePosition.y * 32, 32, 32));
             if (this.currentTarget != null) {
             }
@@ -844,25 +873,29 @@ var KGAD;
             if (!inDirectSight) {
                 this.body.velocity.setTo(0);
             }
-            inDirectSight = false;
-            /*if (inDirectSight) {
+            if (inDirectSight) {
                 // We're in direct sight of the target, so charge at them.
                 if (this.currentTween != null && this.currentTween.isRunning) {
                     this.currentTween.stop(false);
+                    this.currentTween = null;
                 }
-
+                this.moving = false;
+                this.rerouting = false;
                 this.game.physics.arcade.moveToObject(this, this.currentTarget, this.speed);
                 this.currentPath = null;
                 this.currentDestination = null;
-                this.direction = MovementHelper.getDirectionFromAngle(this.game.physics.arcade.angleBetween(this.position, this.currentTarget.position));
+                this.direction = KGAD.MovementHelper.getDirectionFromAngle(this.game.physics.arcade.angleBetween(this.position, this.currentTarget.position));
                 this.updateAnimation();
-
-                this.tilePosition = <Phaser.Point>map.fromPixels(this.position);
+                this.tilePosition = map.fromPixels(this.position);
                 if (!map.occupy(this.tilePosition.x, this.tilePosition.y, this)) {
+                    this.debugStateName = 'busy';
                     this.body.velocity.setTo(0);
                     inDirectSight = false;
                 }
-            }*/
+                else {
+                    this.debugStateName = 'direct';
+                }
+            }
             if (!inDirectSight && (this.currentPath == null || this.currentPath.length === 0)) {
                 // Find a path to the target.
                 this.currentPath = map.findPath(this.tilePosition, targetPositionTiles);
@@ -875,11 +908,13 @@ var KGAD;
          *  Attacks the target.
          */
         Enemy.prototype.attackTarget = function () {
-            //this.action = Actions.Firing;
+            this.action = KGAD.Actions.Firing;
             this.body.velocity.setTo(0);
             this.face(this.currentTarget);
             this.updateAnimation();
+            this.rerouting = false;
             if (this.weapon.canFire) {
+                this.debugStateName = 'attacking';
                 this.currentTarget.inflictDamage(this.weapon.power, this);
                 if (!this.currentTarget.alive) {
                     this.threatTable.removeThreatTarget(this.currentTarget);
@@ -923,7 +958,18 @@ var KGAD;
             lines[3] = new Phaser.Line(halfX, halfY + this.height - 2, tX, tY + tH);
             lines[4] = new Phaser.Line(this.x, this.y, sprite.x, sprite.y);
             var hits = KGAD.CollisionHelper.raycast(lines);
-            return hits.length === 0;
+            if (hits.length > 0) {
+                return false;
+            }
+            var sprites = KGAD.CollisionHelper.raycastForSprites(lines[4], 4, this);
+            for (var i = 0, l = sprites.length; i < l; ++i) {
+                var obstacle = sprites[i];
+                if (obstacle === sprite || obstacle === this) {
+                    continue;
+                }
+                return false;
+            }
+            return true;
         };
         /**
          *  Handles moving from one tile to the next.
@@ -931,6 +977,7 @@ var KGAD;
         Enemy.prototype.moveToNextDestination = function () {
             var _this = this;
             if (this.moving || (this.currentTween != null && this.currentTween.isRunning)) {
+                this.debugStateName = 'moving_path_now';
                 return;
             }
             var nextTile = null;
@@ -954,22 +1001,35 @@ var KGAD;
             this.direction = direction;
             var map = KGAD.Game.CurrentMap;
             if (!map.occupy(nextTile.x, nextTile.y, this)) {
+                var occupant = map.getOccupantOf(nextTile.x, nextTile.y);
+                if (occupant instanceof KGAD.Hero) {
+                    this.currentPath = null;
+                    this.currentDestination = null;
+                    this.currentTarget = occupant;
+                    return;
+                }
                 this.action = KGAD.Actions.Standing;
                 if (change) {
                     this.updateAnimation();
                 }
                 if (this.recheckPathStartTime > 0) {
+                    this.debugStateName = 'waiting';
                     this.recheckPathTime = this.game.time.now - this.recheckPathStartTime;
                     if (this.recheckPathTime > 100) {
+                        this.debugStateName = 'rerouting';
                         this.currentPath = null;
                         this.currentDestination = null;
+                        this.rerouting = true;
                     }
                 }
                 else {
+                    this.debugStateName = 'waiting';
                     this.recheckPathStartTime = this.game.time.now;
                 }
                 return;
             }
+            this.rerouting = false;
+            this.debugStateName = 'moving_path';
             this.recheckPathStartTime = 0;
             this.lastTilePosition = this.tilePosition = nextTile;
             this.currentPath.splice(0, 1);
@@ -1087,6 +1147,7 @@ var KGAD;
                 this.killEnemy(enemiesToRemove[i]);
             }
             var game = KGAD.Game.Instance;
+            game.physics.arcade.collide(this.enemies, this.enemies);
             for (var key in this.groups) {
                 if (this.groups.hasOwnProperty(key)) {
                     var group = this.groups[key];
@@ -1203,9 +1264,9 @@ var KGAD;
             this.keys[2 /* Down */] = [keyboard.addKey(Phaser.Keyboard.DOWN), keyboard.addKey(Phaser.Keyboard.S)];
             this.keys[3 /* Right */] = [keyboard.addKey(Phaser.Keyboard.RIGHT), keyboard.addKey(Phaser.Keyboard.D)];
             this.fireKey = [keyboard.addKey(Phaser.Keyboard.Z), keyboard.addKey(Phaser.Keyboard.SPACEBAR)];
-            this.weapon = new KGAD.Weapon(game, 'basic_arrow', 250, 750);
+            this.weapon = new KGAD.Weapon(game, 'basic_arrow', 400, 750);
             this.weapon.preload();
-            this.movementSpeed = 200;
+            this.movementSpeed = 150;
             this.health = 5;
             this.moving = false;
             this.chargeDirection = null;
@@ -1213,9 +1274,9 @@ var KGAD;
         Object.defineProperty(Hero.prototype, "weight", {
             get: function () {
                 if (this.moving) {
-                    return 5;
+                    return 1;
                 }
-                return 0;
+                return 1;
             },
             enumerable: true,
             configurable: true
@@ -1293,6 +1354,9 @@ var KGAD;
             return result;
         };
         Hero.prototype.fireKeyDown = function () {
+            if (!this.alive) {
+                return;
+            }
             this.weapon.startCharging();
             if (this.isDown(0 /* Up */)) {
                 this.chargeDirection = 0 /* Up */;
@@ -1309,6 +1373,7 @@ var KGAD;
             else {
                 this.chargeDirection = this.direction;
             }
+            this.updateMovementState();
             /*
             var currentDirection = MovementHelper.getNameOfDirection(this.direction);
             if (this.movementKeyState[currentDirection]) {
@@ -1319,35 +1384,42 @@ var KGAD;
             }*/
         };
         Hero.prototype.fireKeyUp = function () {
+            if (!this.alive) {
+                return;
+            }
             var chargePower = this.weapon.stopCharging();
             this.fire(chargePower);
         };
         Hero.prototype.fire = function (chargePower) {
+            if (!this.alive) {
+                return;
+            }
             var projectiles = KGAD.GameInfo.CurrentGame.projectiles;
             if (this.weapon.canFire) {
-                this.chargeDirection = null;
                 projectiles.fire(this.x, this.y, this, this.weapon, chargePower);
-                if (this.movementTween != null && this.movementTween.isRunning) {
+                /*if (this.movementTween != null && this.movementTween.isRunning) {
                     // The player released a shot mid-tween.
                     // Stop the current tween and start a new one so that they can finish tweening at a faster speed.
-                    var nextTilePosition = KGAD.Game.CurrentMap.toPixels(this.nextTile).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
+                    var nextTilePosition = (<Phaser.Point>Game.CurrentMap.toPixels(this.nextTile)).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
                     var remainingDistance = Phaser.Point.distance(this.position, nextTilePosition);
                     if (remainingDistance > 0.0001) {
                         this.movementTween.stop(false);
-                        var timeToMove = Math.min(this.movementSpeed * (remainingDistance / KGAD.GameMap.TILE_WIDTH), this.movementSpeed);
+                        var timeToMove = Math.min(this.movementSpeed * (remainingDistance / GameMap.TILE_WIDTH), this.movementSpeed);
                         this.moveToNextTile(timeToMove);
                     }
                     else {
                         this.movementTween.stop(true);
                     }
-                }
+                }*/
+                this.updateMovementState();
+                this.chargeDirection = null;
             }
         };
         /**
          *  Handle moving in the given direction.
          */
         Hero.prototype.handleMovement = function (direction) {
-            if ((this.movementTween != null && this.movementTween.isRunning) || !this.canMove) {
+            if (!this.canMove) {
                 return;
             }
             var nextTile = Phaser.Point.add(this.tilePosition, KGAD.MovementHelper.getPointFromDirection(direction));
@@ -1358,20 +1430,26 @@ var KGAD;
                 this.direction = direction;
             }
             var map = KGAD.Game.CurrentMap;
-            if (!map.occupy(nextTile.x, nextTile.y, this)) {
+            /*if (!map.occupy(nextTile.x, nextTile.y, this)) {
                 this.moving = false;
                 this.canMove = true;
-                this.action = KGAD.Actions.Standing;
+                this.action = Actions.Standing;
+                this.body.velocity.setTo(0);
                 this.updateAnimation();
                 return;
             }
-            var timeToMove = this.weapon.isCharging() ? this.movementSpeed * 2 : this.movementSpeed;
+
             this.tilePosition = nextTile;
             this.canMove = false;
             this.moving = true;
+            this.action = Actions.Moving;
+            this.nextTile = nextTile;*/
+            var speed = this.weapon.isCharging() ? this.movementSpeed / 3 : this.movementSpeed;
             this.action = KGAD.Actions.Moving;
-            this.nextTile = nextTile;
-            this.moveToNextTile(timeToMove);
+            this.updateAnimation();
+            KGAD.MovementHelper.move(this, direction, speed);
+            //var timeToMove = this.weapon.isCharging() ? this.movementSpeed * 2 : this.movementSpeed;
+            //this.moveToNextTile(timeToMove);
         };
         /**
          *  Move to the next tile.
@@ -1420,6 +1498,11 @@ var KGAD;
             else if (states.right) {
                 direction = 3 /* Right */;
             }
+            var currentDirection = this.direction;
+            var curDirName = KGAD.MovementHelper.getNameOfDirection(currentDirection);
+            if (states[curDirName] === true) {
+                direction = this.direction;
+            }
             if (direction != null) {
                 this.handleMovement(direction);
             }
@@ -1427,7 +1510,8 @@ var KGAD;
                 this.moving = false;
                 this.canMove = true;
                 this.action = KGAD.Actions.Standing;
-                if (this.weapon.isCharging() && this.chargeDirection != null) {
+                this.body.velocity.setTo(0);
+                if (this.chargeDirection != null) {
                     this.direction = this.chargeDirection;
                 }
                 this.updateAnimation();
@@ -1448,6 +1532,7 @@ var KGAD;
                 if (this.lastChargingState !== this.weapon.isCharging()) {
                     this.chargeDirection = this.direction;
                     this.lastChargingState = this.weapon.isCharging();
+                    this.updateMovementState();
                 }
             }
             this.weapon.update(this);
@@ -1469,11 +1554,11 @@ var KGAD;
         __extends(King, _super);
         function King(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
-            this.health = 100;
+            this.health = 20;
         }
         Object.defineProperty(King.prototype, "weight", {
             get: function () {
-                return 10;
+                return 1;
             },
             enumerable: true,
             configurable: true
@@ -1719,6 +1804,14 @@ var KGAD;
             return this._highestThreatTarget;
         };
         /**
+         *
+         */
+        ThreatTable.prototype.update = function () {
+            if (this._highestThreatTarget != null && !this._highestThreatTarget.alive) {
+                this.doTableMaintenance();
+            }
+        };
+        /**
          *  Perform maintenance on the table, such as removing targets who no longer exist.
          */
         ThreatTable.prototype.doTableMaintenance = function () {
@@ -1732,7 +1825,6 @@ var KGAD;
                     removables.push(sprite);
                 }
                 else {
-                    console.log(entry);
                     if (entry.threat > highestThreat) {
                         highestThreatSprite = sprite;
                         highestThreat = entry.threat;
@@ -2331,6 +2423,8 @@ var KGAD;
         CollisionHelper.raycast = function (line, stepRate) {
             if (stepRate === void 0) { stepRate = 4; }
             var map = KGAD.Game.CurrentMap;
+            var info = KGAD.GameInfo.CurrentGame;
+            var enemies = info.enemies.enemies;
             var hits = [];
             if (line instanceof Array) {
                 for (var i = 0, l = line.length; i < l; ++i) {
@@ -2348,6 +2442,54 @@ var KGAD;
                 hits = map.collisionLayer.getRayCastTiles(line, stepRate, true, false);
             }
             return hits;
+        };
+        /**
+         *  Performs a raycast for sprites.
+         */
+        CollisionHelper.raycastForSprites = function (line, stepRate, requestor) {
+            if (stepRate === void 0) { stepRate = 4; }
+            var map = KGAD.Game.CurrentMap;
+            var info = KGAD.GameInfo.CurrentGame;
+            var enemies = info.enemies.enemies;
+            var coords;
+            var spriteHits;
+            var _line;
+            if (line instanceof Array) {
+                for (var i = 0, l = line.length; i < l; ++i) {
+                    _line: Phaser.Line = line[i];
+                    coords = _line.coordinatesOnLine(stepRate, coords);
+                    spriteHits = [];
+                    for (var k = 0, n = coords.length; k < n; ++k) {
+                        var coord = coords[k];
+                        var tileCoord = map.fromPixels(coord);
+                        var occupant = map.getOccupantOf(tileCoord.x, tileCoord.y);
+                        if (occupant != null) {
+                            if (requestor != null && occupant == requestor) {
+                                continue;
+                            }
+                            else {
+                                spriteHits.push(occupant);
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                _line = line;
+                var undef;
+                coords = _line.coordinatesOnLine(stepRate, undef);
+                spriteHits = [];
+                for (var k = 0, n = coords.length; k < n; ++k) {
+                    var coord = coords[k];
+                    var tileCoord = map.fromPixels(new Phaser.Point(coord[0], coord[1]));
+                    var occupant = map.getOccupantOf(tileCoord.x, tileCoord.y);
+                    if (occupant != null) {
+                        spriteHits.push(occupant);
+                        break;
+                    }
+                }
+            }
+            return spriteHits;
         };
         return CollisionHelper;
     })();
@@ -2536,6 +2678,16 @@ var KGAD;
         GameMap.prototype.isWallInPixelCoordinates = function (x, y) {
             var collidingTiles = this.collisionLayer.getTiles(x, y, GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT, true);
             return collidingTiles != null && collidingTiles.length > 0;
+        };
+        /**
+         *  Checks who the occupant of the given tile coordinate is.
+         */
+        GameMap.prototype.getOccupantOf = function (x, y) {
+            if (this.isOutOfBounds(x, y) || this.isWall(x, y) || !this.isOccupied(x, y)) {
+                return null;
+            }
+            var occupant = this.occupiedGrid[y * this.width + x];
+            return occupant;
         };
         /**
          *  Occupy a tile for yourself.

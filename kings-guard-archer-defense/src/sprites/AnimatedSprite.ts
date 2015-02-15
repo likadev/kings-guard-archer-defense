@@ -13,6 +13,7 @@ module KGAD {
         protected lastPosition: Phaser.Point;
         protected lastTilePosition: Phaser.Point;
         protected canOccupy: boolean;
+        protected blocked: boolean;
 
         constructor(game: Phaser.Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
@@ -22,6 +23,7 @@ module KGAD {
             this.direction = Directions.Down;
             this.added = false;
             this.canOccupy = true;
+            this.blocked = false;
         }
 
         init(...args: any[]): void {
@@ -90,7 +92,7 @@ module KGAD {
                     player = this.animations.play(animationName);
                 }
                 else {
-                    this.action = Actions.Standing;
+                    this.action = Actions.Moving;
                     animationName = AnimationHelper.getCurrentAnimation(this);
                     animation = this.animations.getAnimation(animationName);
                     if (animation != null) {
@@ -125,10 +127,15 @@ module KGAD {
                 if (!this.tilePosition.equals(this.lastTilePosition)) {
                     if (!map.occupy(this.tilePosition.x, this.tilePosition.y, this)) {
                         this.position = this.lastPosition;
+                        /*if (this.body) {
+                            this.body.velocity.setTo(0);
+                        }*/
+                        this.blocked = true;
                     }
                     else {
                         this.lastPosition = this.position;
                         this.lastTilePosition = this.tilePosition;
+                        this.blocked = false;
                     }
                 }
             }

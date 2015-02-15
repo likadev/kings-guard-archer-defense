@@ -67,13 +67,13 @@ module KGAD {
             spawnEnemy = () => {
                 var idx = this.game.rnd.integerInRange(0, enemySpawns.length - 1);
                 var nextSpawnTime = 3000;
-                if (this.enemyGenerator.enemies.length <= 1) {
+                if (this.enemyGenerator.enemies.length <= 2) {
                     nextSpawnTime = 500;
                 }
 
                 this.enemyGenerator.create('enemy', enemySpawns[idx].x, enemySpawns[idx].y);
 
-                this.game.time.events.add(3000, spawnEnemy, this);
+                this.game.time.events.add(nextSpawnTime, spawnEnemy, this);
             }
 
             this.game.time.events.add(5000, spawnEnemy, this);
@@ -111,6 +111,7 @@ module KGAD {
         }
 
         render(): void {
+            return;
             var enemies = this.enemyGenerator.enemies;
             for (var i = 0, l = enemies.length; i < l; ++i) {
                 enemies[i].render();

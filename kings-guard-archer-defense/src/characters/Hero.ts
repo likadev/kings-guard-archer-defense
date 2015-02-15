@@ -41,10 +41,10 @@ module KGAD {
             this.keys[Directions.Right] = [keyboard.addKey(Phaser.Keyboard.RIGHT), keyboard.addKey(Phaser.Keyboard.D)];
 
             this.fireKey = [keyboard.addKey(Phaser.Keyboard.Z), keyboard.addKey(Phaser.Keyboard.SPACEBAR)];
-            this.weapon = new Weapon(game, 'basic_arrow', 250, 750);
+            this.weapon = new Weapon(game, 'basic_arrow', 400, 750);
             this.weapon.preload();
 
-            this.movementSpeed = 200;
+            this.movementSpeed = 150;
             this.health = 5;
             this.moving = false;
             this.chargeDirection = null;
@@ -52,10 +52,10 @@ module KGAD {
 
         public get weight(): number {
             if (this.moving) {
-                return 5;
+                return 1;
             }
 
-            return 0;
+            return 1;
         }
 
         init(): void {
@@ -127,6 +127,10 @@ module KGAD {
         }
 
         private fireKeyDown() {
+            if (!this.alive) {
+                return;
+            }
+
             this.weapon.startCharging();
 
             if (this.isDown(Directions.Up)) {
@@ -145,6 +149,8 @@ module KGAD {
                 this.chargeDirection = this.direction;
             }
 
+            this.updateMovementState();
+
             /*
             var currentDirection = MovementHelper.getNameOfDirection(this.direction);
             if (this.movementKeyState[currentDirection]) {
@@ -156,18 +162,25 @@ module KGAD {
         }
 
         private fireKeyUp() {
+            if (!this.alive) {
+                return;
+            }
+
             var chargePower = this.weapon.stopCharging();
             this.fire(chargePower);
         }
 
         private fire(chargePower: number) {
+            if (!this.alive) {
+                return;
+            }
+
             var projectiles = GameInfo.CurrentGame.projectiles;
 
             if (this.weapon.canFire) {
-                this.chargeDirection = null;
                 projectiles.fire(this.x, this.y, this, this.weapon, chargePower);
 
-                if (this.movementTween != null && this.movementTween.isRunning) {
+                /*if (this.movementTween != null && this.movementTween.isRunning) {
                     // The player released a shot mid-tween.
                     // Stop the current tween and start a new one so that they can finish tweening at a faster speed.
                     var nextTilePosition = (<Phaser.Point>Game.CurrentMap.toPixels(this.nextTile)).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
@@ -180,7 +193,9 @@ module KGAD {
                     else {
                         this.movementTween.stop(true);
                     }
-                }
+                }*/
+                this.updateMovementState();
+                this.chargeDirection = null;
             }
         }
 
@@ -188,7 +203,7 @@ module KGAD {
          *  Handle moving in the given direction.
          */
         private handleMovement(direction: Directions) {
-            if ((this.movementTween != null && this.movementTween.isRunning) || !this.canMove) {
+            if (/*(this.movementTween != null && this.movementTween.isRunning) || */!this.canMove) {
                 return;
             }
 
@@ -202,22 +217,28 @@ module KGAD {
             }
 
             var map = Game.CurrentMap;
-            if (!map.occupy(nextTile.x, nextTile.y, this)) {
+            /*if (!map.occupy(nextTile.x, nextTile.y, this)) {
                 this.moving = false;
                 this.canMove = true;
                 this.action = Actions.Standing;
+                this.body.velocity.setTo(0);
                 this.updateAnimation();
                 return;
             }
 
-            var timeToMove = this.weapon.isCharging() ? this.movementSpeed * 2 : this.movementSpeed;
             this.tilePosition = nextTile;
             this.canMove = false;
             this.moving = true;
             this.action = Actions.Moving;
-            this.nextTile = nextTile;
+            this.nextTile = nextTile;*/
 
-            this.moveToNextTile(timeToMove);
+            var speed = this.weapon.isCharging() ? this.movementSpeed / 3 : this.movementSpeed;
+            this.action = Actions.Moving;
+            this.updateAnimation();
+            MovementHelper.move(this, direction, speed);
+
+            //var timeToMove = this.weapon.isCharging() ? this.movementSpeed * 2 : this.movementSpeed;
+            //this.moveToNextTile(timeToMove);
         }
 
         /**
@@ -272,6 +293,12 @@ module KGAD {
                 direction = Directions.Right;
             }
 
+            var currentDirection = this.direction;
+            var curDirName = MovementHelper.getNameOfDirection(currentDirection);
+            if (states[curDirName] === true) {
+                direction = this.direction;
+            }
+
             if (direction != null) {
                 this.handleMovement(direction);
             }
@@ -279,8 +306,9 @@ module KGAD {
                 this.moving = false;
                 this.canMove = true;
                 this.action = Actions.Standing;
+                this.body.velocity.setTo(0);
 
-                if (this.weapon.isCharging() && this.chargeDirection != null) {
+                if (this.chargeDirection != null) {
                     this.direction = this.chargeDirection;
                 }
 
@@ -308,6 +336,7 @@ module KGAD {
                 if (this.lastChargingState !== this.weapon.isCharging()) {
                     this.chargeDirection = this.direction;
                     this.lastChargingState = this.weapon.isCharging();
+                    this.updateMovementState();
                     //this.handleMovement(this.direction);
                 }
             }

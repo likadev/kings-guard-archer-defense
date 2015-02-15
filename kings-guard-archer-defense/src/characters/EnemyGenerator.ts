@@ -102,6 +102,8 @@ module KGAD {
             }
 
             var game = Game.Instance;
+            game.physics.arcade.collide(this.enemies, this.enemies);
+
             for (var key in this.groups) {
                 if (this.groups.hasOwnProperty(key)) {
                     var group = this.groups[key];
