@@ -12,9 +12,8 @@ module KGAD {
         private currentPath: Phaser.Point[];
         private currentDestination: Phaser.Point;
         private previousPosition: Phaser.Point;
-        private currentTween: Phaser.Tween;
         private damageTween: Phaser.Tween;
-        private speed: number;
+        private centerTween: Phaser.Tween;
         private moving: boolean;
         private recheckPathStartTime: number;
         private recheckPathTime: number;
@@ -23,14 +22,16 @@ module KGAD {
         protected threatTable: ThreatTable;
         private debugStateName: string = "idle";
         private rerouting: boolean;
+        private unblockTries = 0;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
             this.attached = [];
-            this.speed = 75;
+            this.movementSpeed = 75;
             this.tilePosition = null;
             this.lastTilePosition = null;
             this.rerouting = false;
+            this.health = 3;
         }
 
         init(...args: any[]) {
@@ -39,6 +40,7 @@ module KGAD {
             this.body.immovable = true;
             this.weapon = new Weapon(this.game, 'short_sword', 1500, 0, 1, 0, null);
             this.weapon.backSwing = 500;
+            this.weapon.range = 32;
 
             if (args.length > 0) {
                 this.enemyType = args[0];
@@ -51,7 +53,38 @@ module KGAD {
             this.threatTable = new ThreatTable(this);
             this.threatTable.highestThreatChanged.add((who) => { this.onHighestThreatTargetChanged(who); });
 
+            this.blocked.add((blockedBy) => {
+                this.onBlocked(blockedBy);
+            });
+
             super.addToWorld();
+        }
+
+        public get alliance(): Alliance {
+            return Alliance.Enemy;
+        }
+
+        private onBlocked(blockedBy: AnimatedSprite[]) {
+            this.stopMovementTween();
+
+            if (this.rerouting) {
+                return;
+            }
+
+            for (var i = 0, l = blockedBy.length; i < l; ++i) {
+                var occupant = blockedBy[i];
+                if (occupant.alliance !== this.alliance) {
+                    this.threatTable.addThreat(occupant, 10);
+                }
+            }
+
+            this.debugStateName = 'rerouting';
+            this.game.time.events.add(100,() => {
+                this.unsetCurrentPath();
+                this.rerouting = false;
+            }, this);
+
+            this.rerouting = true;
         }
 
         public get weight(): number {
@@ -59,8 +92,8 @@ module KGAD {
                 return 0;
             }
 
-            if (this.action == Actions.Firing) {
-                return 50;
+            if (this.action == Actions.Firing || this.weapon.isBackSwinging()) {
+                return 0;
             }
             else if (this.action == Actions.Moving) {
                 return 2;
@@ -88,9 +121,12 @@ module KGAD {
             }
 
             if (this.health <= 0) {
-                Game.CurrentMap.unoccupy(this);
-                if (this.currentTween != null && this.currentTween.isRunning) {
-                    this.currentTween.stop(false);
+                if (!OccupiedGrid.remove(this)) {
+                    console.error("Enemy was not removed!");
+                }
+
+                if (this.movementTween != null && this.movementTween.isRunning) {
+                    this.movementTween.stop(false);
                 }
                 this.currentPath = null;
                 this.currentDestination = null;
@@ -134,6 +170,7 @@ module KGAD {
             }
 
             this.threatTable.update();
+            this.pathFindingMover.update();
 
             if (this.currentTarget == null) {
                 this.currentTarget = this.threatTable.getHighestThreatTarget();
@@ -143,7 +180,7 @@ module KGAD {
                 }
             }
 
-            if (this.weapon.isBackSwinging()) {
+            if (this.weapon.isBackSwinging() || this.isCentering() || this.rerouting || this.isMoveTweening()) {
                 return;
             }
 
@@ -158,18 +195,17 @@ module KGAD {
         render() {
             return;
 
-            if (this.currentPath != null) {
-                for (var i = 0, l = this.currentPath.length; i < l; ++i) {
-                    var node = <Phaser.Point>Game.CurrentMap.toPixels(this.currentPath[i]);
-                    this.game.debug.geom(new Phaser.Rectangle(node.x, node.y, 32, 32), "#FF0000", false);
-                }
+            if (this.health <= 0) {
+                return;
             }
 
-            if (this.currentDestination != null) {
-                this.game.debug.geom(new Phaser.Rectangle(this.currentDestination.x - 16, this.currentDestination.y - 16, 32, 32), '#00FF00', false);
-            }
-            
             this.game.debug.text(this.debugStateName, this.x - 16, this.y - 16, '#FFFFFF', '12px Courier new');
+
+            if (this.currentDestination != null) {
+                //this.game.debug.geom(new Phaser.Rectangle(this.currentDestination.x - 16, this.currentDestination.y - 16, 32, 32), '#00FF00', false);
+            }
+
+            //this.pathFindingMover.render();
 
             //this.game.debug.geom(new Phaser.Rectangle(this.tilePosition.x * 32, this.tilePosition.y * 32, 32, 32));
 
@@ -188,8 +224,71 @@ module KGAD {
 
                 for (i = 0; i < 4; ++i) {
                     this.game.debug.geom(lines[i]);
+                }
+
+                var sprite = this.currentTarget;
+                var halfX = (this.x - GameMap.TILE_WIDTH / 2) + 1;
+                var halfY = (this.y - GameMap.TILE_HEIGHT / 2) + 1;
+                var tX = (sprite.x - GameMap.TILE_WIDTH / 2) + 1;
+                var tY = (sprite.y - GameMap.TILE_HEIGHT / 2) + 1;
+                var tW = sprite.width - 2;
+                var tH = sprite.height - 2;
+                var lines: Phaser.Line[] = [];
+                lines[0] = new Phaser.Line(halfX, halfY, tX, tY);
+                lines[1] = new Phaser.Line(halfX + this.width - 2, halfY, tX + tW, tY);
+                lines[2] = new Phaser.Line(halfX + this.width - 2, halfY + this.height - 2, tX + tW, tY + tH);
+                lines[3] = new Phaser.Line(halfX, halfY + this.height - 2, tX, tY + tH);
+                lines[4] = new Phaser.Line(this.x, this.y, sprite.x, sprite.y);
+
+                this.game.debug.geom(lines[4], '#00FF00', true);
+
+                var sprites = CollisionHelper.raycastForSprites(lines[4], 4, this);
+                for (var i = 0, l = sprites.length; i < l; ++i) {
+                    var obstacle = sprites[i];
+                    if (!(obstacle === sprite || obstacle === this)) {
+                        this.game.debug.body(obstacle, '#FF3333', true);
+                    }
                 }*/
             }
+        }
+
+        /**
+         *  Centers on the currently occupied tile.
+         */
+        public centerOnTile() {
+            var map = Game.CurrentMap;
+            var pos = this.tilePosition;
+            var center = (<Phaser.Point>map.toPixels(pos)).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
+            this.stopMovementTween();
+
+            if (this.centerTween != null && this.centerTween.isRunning) {
+                this.centerTween.stop(false);
+            }
+
+            var timeToMove = Phaser.Point.distance(this.position, center) / this.movementSpeed * 1000;
+            if (timeToMove === 0) {
+                return;
+            }
+
+            this.centerTween = this.game.add.tween(this).to({ x: center.x, y: center.y }, timeToMove, Phaser.Easing.Linear.None, true, 0);
+        }
+
+        /**
+         *  Gets or sets whether or not this enemy is centering on a tile.
+         */
+        private isCentering(): boolean {
+            return this.centerTween != null && this.centerTween.isRunning;
+        }
+
+        /**
+         *  Un-sets the current path, allowing a new one to be created.
+         */
+        private unsetCurrentPath(): any {
+            this.currentPath = null;
+            this.currentDestination = null;
+            this.pathFindingMover.currentPath = null;
+
+            return null;
         }
 
         /**
@@ -197,54 +296,27 @@ module KGAD {
          */
         private seekTarget() {
             this.action = Actions.Moving;
-            var info = GameInfo.CurrentGame;
             var map = Game.CurrentMap;
 
             var targetPosition = this.currentTarget.position;
-            var targetPositionTiles = this.currentTarget.tilePosition;
+            var targetPositionTiles = <Phaser.Point>map.fromPixels(targetPosition);
+            var targetBounds = OccupiedGrid.getBoundsOfSprite(this.currentTarget);
 
-            if (this.currentPath != null && this.currentPath.length > 0) {
-                var enemyTile = this.currentPath[this.currentPath.length - 1];
-                if (!targetPositionTiles.equals(enemyTile)) {
-                    this.currentPath = null;
+            var path = this.pathFindingMover.currentPath;
+
+            if (path != null && path.length > 0) {
+                var lastNode: Phaser.Rectangle = this.pathFindingMover.currentPath.peekLast();
+                var targetNode = new Phaser.Rectangle(targetBounds.x, targetBounds.y, targetBounds.width, targetBounds.height);
+                
+                if (!Phaser.Rectangle.intersects(lastNode, targetNode)) {
+                    path = this.unsetCurrentPath();
                 }
             }
 
-            var inDirectSight = this.inDirectSightOf(this.currentTarget);
-            if (!inDirectSight) {
-                this.body.velocity.setTo(0);
-            }
-
-            if (inDirectSight) {
-                // We're in direct sight of the target, so charge at them.
-                if (this.currentTween != null && this.currentTween.isRunning) {
-                    this.currentTween.stop(false);
-                    this.currentTween = null;
-                }
-
-                this.moving = false;
-                this.rerouting = false;
-
-                this.game.physics.arcade.moveToObject(this, this.currentTarget, this.speed);
-                this.currentPath = null;
-                this.currentDestination = null;
-                this.direction = MovementHelper.getDirectionFromAngle(this.game.physics.arcade.angleBetween(this.position, this.currentTarget.position));
-                this.updateAnimation();
-
-                this.tilePosition = <Phaser.Point>map.fromPixels(this.position);
-                if (!map.occupy(this.tilePosition.x, this.tilePosition.y, this)) {
-                    this.debugStateName = 'busy';
-                    this.body.velocity.setTo(0);
-                    inDirectSight = false;
-                }
-                else {
-                    this.debugStateName = 'direct';
-                }
-            }
-
-            if (!inDirectSight && (this.currentPath == null || this.currentPath.length === 0)) {
+            if (path == null || path.length === 0) {
                 // Find a path to the target.
                 this.currentPath = map.findPath(this.tilePosition, targetPositionTiles);
+                this.pathFindingMover.setCurrentPath(new Path(this.currentPath));
             }
 
             if (this.currentPath != null && this.currentPath.length > 0) {
@@ -279,8 +351,7 @@ module KGAD {
          */
         private onHighestThreatTargetChanged(sprite: AnimatedSprite) {
             this.currentTarget = sprite;
-            this.currentPath = null;
-            this.currentDestination = null;
+            this.unsetCurrentPath();
         }
 
         /**
@@ -296,127 +367,56 @@ module KGAD {
         }
 
         /**
-         *  Checks if the target is in direct sight of us.
+         *  Checks if an obstacle is between this enemy and the target.
          */
-        private inDirectSightOf(sprite: AnimatedSprite): boolean {
-            var halfX = (this.x - GameMap.TILE_WIDTH / 2) + 1;
-            var halfY = (this.y - GameMap.TILE_HEIGHT / 2) + 1;
-            var tX = (sprite.x - GameMap.TILE_WIDTH / 2) + 1;
-            var tY = (sprite.y - GameMap.TILE_HEIGHT / 2) + 1;
-            var tW = sprite.width - 2;
-            var tH = sprite.height - 2;
-            var lines: Phaser.Line[] = [];
-            lines[0] = new Phaser.Line(halfX, halfY, tX, tY);
-            lines[1] = new Phaser.Line(halfX + this.width - 2, halfY, tX + tW, tY);
-            lines[2] = new Phaser.Line(halfX + this.width - 2, halfY + this.height - 2, tX + tW, tY + tH);
-            lines[3] = new Phaser.Line(halfX, halfY + this.height - 2, tX, tY + tH);
-            lines[4] = new Phaser.Line(this.x, this.y, sprite.x, sprite.y);
-
-            var hits: any[] = CollisionHelper.raycast(lines);
-            if (hits.length > 0) {
-                return false;
-            }
-
-            var sprites = CollisionHelper.raycastForSprites(lines[4], 4, this);
+        private getObstacleBetween(sprite: AnimatedSprite): AnimatedSprite {
+            var line = new Phaser.Line(this.x, this.y, sprite.x, sprite.y);
+            var sprites = CollisionHelper.raycastForSprites(line, 4, this);
             for (var i = 0, l = sprites.length; i < l; ++i) {
                 var obstacle = sprites[i];
                 if (obstacle === sprite || obstacle === this) {
                     continue;
                 }
 
-                return false;
+                return obstacle;
             }
 
-            return true;
+            return null;
         }
 
         /**
-         *  Handles moving from one tile to the next.
+         *  Moves to the next destination in the pathfinding node.
          */
-        private moveToNextDestination(): void {
-            if (this.moving || (this.currentTween != null && this.currentTween.isRunning)) {
-                this.debugStateName = 'moving_path_now';
+        private moveToNextDestination() {
+            if (this.isMoveTweening()) {
                 return;
             }
 
-            var nextTile: Phaser.Point = null;
-            if (this.currentDestination == null && this.currentPath != null && this.currentPath.length > 0) {
-                nextTile = this.currentPath[0];
-                this.currentDestination = <Phaser.Point>Game.CurrentMap.toPixels(nextTile);
-                this.currentDestination.add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
-            }
-
-            if (nextTile == null) {
-                this.currentDestination = null;
+            var path = this.pathFindingMover.currentPath;
+            if (path == null) {
                 return;
             }
 
-            if (this.tilePosition.equals(nextTile)) {
-                this.currentPath.splice(0, 1);
-                this.currentDestination = null;
-                return;
-            }
-            
-            var angle = this.game.physics.arcade.angleBetween(this.tilePosition, nextTile);
-            var direction = MovementHelper.getDirectionFromAngle(angle);
-
-            var change = this.direction != direction;
-            this.direction = direction;
-
-            var map = Game.CurrentMap;
-            if (!map.occupy(nextTile.x, nextTile.y, this)) {
-                var occupant = map.getOccupantOf(nextTile.x, nextTile.y);
-                if (occupant instanceof Hero) {
-                    this.currentPath = null;
-                    this.currentDestination = null;
-                    this.currentTarget = occupant;
-                    return;
-                }
-
-                this.action = Actions.Standing;
-                if (change) {
-                    this.updateAnimation();
-                }
-
-                if (this.recheckPathStartTime > 0) {
-                    this.debugStateName = 'waiting';
-                    this.recheckPathTime = this.game.time.now - this.recheckPathStartTime;
-                    if (this.recheckPathTime > 100) {
-                        this.debugStateName = 'rerouting';
-                        this.currentPath = null;
-                        this.currentDestination = null;
-                        this.rerouting = true;
-                    }
-                }
-                else {
-                    this.debugStateName = 'waiting';
-                    this.recheckPathStartTime = this.game.time.now;
-                }
-                
+            var rect = path.next();
+            if (rect == null) {
+                this.pathFindingMover.currentPath = null;
+                this.currentPath = null;
                 return;
             }
 
-            this.rerouting = false;
+            this.unblockTries = 0;
 
-            this.debugStateName = 'moving_path';
+            this.debugStateName = 'moving';
 
-            this.recheckPathStartTime = 0;
-
-            this.lastTilePosition = this.tilePosition = nextTile;
-
-            this.currentPath.splice(0, 1);
-
+            var center = new Phaser.Point(rect.centerX, rect.centerY);
+            var angle = this.game.physics.arcade.angleBetween(this.position, center);
+            this.direction = MovementHelper.getDirectionFromAngle(angle);
             this.action = Actions.Moving;
-            this.moving = true;
-
-            var timeToMove = Phaser.Point.distance(this.position, this.currentDestination) / this.speed * 1000;
-            this.currentTween = this.game.add.tween(this).to({ x: this.currentDestination.x, y: this.currentDestination.y }, timeToMove, Phaser.Easing.Linear.None, true, 0);
-            this.currentTween.onComplete.addOnce(() => {
-                this.moving = false;
-                this.currentDestination = null;
-            });
-
             this.updateAnimation();
+
+            this.moveTweenTo(center);
+
+            this.currentDestination = center;
         }
     }
 }

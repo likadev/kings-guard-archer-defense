@@ -74,10 +74,10 @@ module KGAD {
         }
 
         private createMiniGrid(from: Phaser.Point, to: Phaser.Point): Graph {
-            var minX = Math.min(from.x, to.x) - 1;
-            var minY = Math.min(from.y, to.y) - 1;
-            var maxX = Math.max(from.x, to.x) + 1;
-            var maxY = Math.max(from.y, to.y) + 1;
+            var minX = Math.min(from.x, to.x);
+            var minY = Math.min(from.y, to.y);
+            var maxX = Math.max(from.x, to.x);
+            var maxY = Math.max(from.y, to.y);
 
             var rect = new Phaser.Rectangle(minX, minY, maxX - minX, maxY - minY);
             var width: number = rect.width;
@@ -115,9 +115,7 @@ module KGAD {
             for (var x = 0; x < width; ++x) {
                 grid[x] = [];
                 for (var y = 0; y < height; ++y) {
-                    var isOccupied: boolean = this.map.isOccupied(x, y);
-                    var isWall: boolean = this.map.isWall(x, y);
-                    var weight: number = isWall ? 0 : (isOccupied ? this.map.getWeightOfOccupiedTile(x, y) : 1);
+                    var weight = OccupiedGrid.getWeightOfInTileCoordinates(x, y);
                     grid[x][y] = weight;
                 }
             }
@@ -134,9 +132,7 @@ module KGAD {
 
             for (var x = 0; x < w; ++x) {
                 for (var y = 0; y < h; ++y) {
-                    var isOccupied: boolean = this.map.isOccupied(x, y);
-                    var isWall: boolean = this.map.isWall(x, y);
-                    var weight: number = isWall ? 0 : (isOccupied ? this.map.getWeightOfOccupiedTile(x, y) : 1);
+                    var weight: number = OccupiedGrid.getWeightOfInTileCoordinates(x, y);
                     this.graph.grid[x][y].weight = weight;
                 }
             }

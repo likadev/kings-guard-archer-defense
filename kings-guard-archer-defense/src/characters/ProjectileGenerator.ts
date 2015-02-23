@@ -133,6 +133,9 @@ module KGAD {
             var game = Game.Instance;
 
             game.physics.arcade.collide(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => { this.onProjectileHitWall(proj); });
+            game.physics.arcade.overlap(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => {
+                this.onProjectileHitWall(proj);
+            });
 
             for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
                 this.activeProjectiles[i].update();

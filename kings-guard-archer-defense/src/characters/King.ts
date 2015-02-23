@@ -11,7 +11,7 @@ module KGAD {
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
 
-            this.health = 20;
+            this.health = 35;
         }
 
         public get weight(): number {

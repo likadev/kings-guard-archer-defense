@@ -14,9 +14,14 @@ module KGAD {
             this._table = [];
             this.highestThreatChanged = new Phaser.Signal();
 
-            var info = GameInfo.CurrentGame;
-            this.addThreat(info.king, 1);
-            this.addThreat(info.hero, 1);
+            var king = Game.King;
+            var hero = Game.Hero;
+
+            if (parent.alliance !== king.alliance) {
+                this.addThreat(king, 0.5);
+                this.addThreat(hero, 0.5);
+            }
+
             this.doTableMaintenance();
         }
 
@@ -44,7 +49,7 @@ module KGAD {
             }
             else {
                 var threatData = this._table[idx];
-                threatData.threat += threat;
+                threatData.threat = Math.max(0, threatData.threat + threat);
                 newThreat = threatData.threat;
             }
 
@@ -77,7 +82,19 @@ module KGAD {
         }
 
         /**
-         *  
+         *  Gets the threat level for the given sprite.
+         */
+        public getThreatFor(sprite: AnimatedSprite) {
+            var idx = this.indexOfSpriteInTable(sprite);
+            if (idx < 0) {
+                return 0;
+            }
+
+            return this._table[idx].threat;
+        }
+
+        /**
+         *  Does maintenance on the current state of the threat table.
          */
         public update() {
             if (this._highestThreatTarget != null && !this._highestThreatTarget.alive) {

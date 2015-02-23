@@ -12,6 +12,7 @@ module KGAD {
         private fullChargeTime: number;
         public frontSwing: number = 0;
         public backSwing: number = 0;
+        public range: number = 32;
 
         constructor(public game: Phaser.Game, public key: string, public cooldown: number, public projectileSpeed: number = 0,
             public power: number = 1, public aliveTime: number = 5000, public chargeSprite: AnimatedSprite = null) {
@@ -99,8 +100,6 @@ module KGAD {
         }
 
         update(owner?: AnimatedSprite): void {
-            this.game.physics.arcade.collide(this.group, Game.CurrentMap.collisionLayer);
-
             if (this.chargeSprite != null) {
                 var currentAnim = this.chargeSprite.animations.currentAnim;
                 if (this.isCharging() && (currentAnim == null || !currentAnim.isPlaying || !this.chargeSprite.visible)) {

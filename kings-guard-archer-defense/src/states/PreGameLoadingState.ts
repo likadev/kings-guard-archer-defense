@@ -6,7 +6,6 @@ module KGAD {
         private map: GameMap;
         private ready: boolean;
         private sprites: {};
-        private enemyGenerator: EnemyGenerator;
         private chargeSprite: AnimatedSprite;
 
         constructor() {
@@ -23,9 +22,10 @@ module KGAD {
             this.map.preload();
 
             var spritesheets = [
-                'hero_spritesheet',
+                Hero.KEY,
                 'king',
                 'enemy',
+                'tank_merc',
             ];
 
             var total = spritesheets.length;
@@ -34,9 +34,10 @@ module KGAD {
             for (var i = 0; i < total; ++i) {
                 var spritesheet = spritesheets[i];
                 var name = spritesheet;
-                var isHero = name === 'hero_spritesheet';
+                var isHero = name === Hero.KEY;
                 var isEnemy = name === 'enemy';
                 var isKing = name === 'king';
+                var isMerc = name === 'tank_merc';
 
                 var callback = (sprite: AnimatedSprite) => {
                     this.sprites[sprite.key] = sprite;
@@ -47,25 +48,21 @@ module KGAD {
                     }
                 };
 
-                AnimationLoader.load(name, callback, isHero ? Hero : isEnemy ? Enemy : isKing ? King : AnimatedSprite);
+                AnimationLoader.load(name, callback, isHero ? Hero : isEnemy ? Enemy : isKing ? King : isMerc ? Mercenary : AnimatedSprite);
             }
 
             AnimationLoader.load('charge',(s: AnimatedSprite) => {
                 this.chargeSprite = s;
-            }, AnimatedSprite, 'assets/textures/weapons/');
+            }, BowCharge, 'assets/textures/weapons/');
         }
 
         create(): void {
-            this.enemyGenerator = new EnemyGenerator();
-            this.enemyGenerator.addType(new EnemySpecification("enemy", 64, 3, 0));
         }
 
         update(): void {
             var states = States.Instance;
             if (AnimationLoader.done && this.ready) {
-                var hero: Hero = this.sprites['hero_spritesheet'];
-                hero.weapon.chargeSprite = this.chargeSprite;
-                states.switchTo(States.GameSimulation, true, false, this.map, this.sprites, this.enemyGenerator);
+                states.switchTo(States.GameSimulation, true, false, this.map, this.sprites);
             }
         }
     }

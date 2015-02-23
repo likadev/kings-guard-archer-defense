@@ -18,8 +18,11 @@
     <IISExpressUseClassicPipelineMode />
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="assets\textures\characters\enemy.png" />
     <Content Include="assets\textures\characters\hero_spritesheet.png" />
+    <Content Include="assets\textures\characters\hero_worksheet.png" />
     <Content Include="assets\textures\characters\king.png" />
+    <Content Include="assets\textures\characters\tank_merc.png" />
     <Content Include="assets\textures\weapons\basic_arrow.png" />
     <Content Include="assets\textures\weapons\charge.png" />
     <Content Include="assets\tilesets\dw_tileset_32x32.png" />
@@ -38,14 +41,16 @@
     <TypeScriptCompile Include="definitions\jquery.d.ts" />
     <TypeScriptCompile Include="definitions\phaser.d.ts" />
     <TypeScriptCompile Include="definitions\pixi.d.ts" />
+    <TypeScriptCompile Include="src\characters\Actors.ts" />
+    <TypeScriptCompile Include="src\characters\Alliance.ts" />
+    <TypeScriptCompile Include="src\characters\effects\BowCharge.ts" />
     <TypeScriptCompile Include="src\characters\Enemy.ts" />
-    <TypeScriptCompile Include="src\characters\EnemyGenerator.ts" />
     <TypeScriptCompile Include="src\characters\FiredProjectile.ts" />
     <TypeScriptCompile Include="src\characters\Hero.ts" />
     <TypeScriptCompile Include="src\characters\King.ts" />
+    <TypeScriptCompile Include="src\characters\Mercenary.ts" />
     <TypeScriptCompile Include="src\characters\ProjectileGenerator.ts" />
     <TypeScriptCompile Include="src\characters\Weapon.ts" />
-    <TypeScriptCompile Include="src\game\GameInfo.ts" />
     <TypeScriptCompile Include="src\game\ScriptEngine.ts" />
     <TypeScriptCompile Include="src\game\ThreatTable.ts" />
     <TypeScriptCompile Include="src\input\Actions.ts" />
@@ -53,6 +58,7 @@
     <TypeScriptCompile Include="src\input\Directions.ts" />
     <TypeScriptCompile Include="src\input\MovementHelper.ts" />
     <TypeScriptCompile Include="src\sprites\AnimatedSprite.ts" />
+    <TypeScriptCompile Include="src\sprites\AnimatedSpriteActivator.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\AnimationCellDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\AnimationDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\AnimationLoader.ts" />
@@ -61,13 +67,18 @@
     <TypeScriptCompile Include="src\sprites\conversion\SpriteDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\WeaponSpecification.ts" />
     <TypeScriptCompile Include="src\sprites\helpers\CollisionHelper.ts" />
+    <TypeScriptCompile Include="src\sprites\helpers\PathMovementMachine.ts" />
     <TypeScriptCompile Include="src\states\BootState.ts" />
     <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
     <TypeScriptCompile Include="src\states\MainMenuState.ts" />
     <TypeScriptCompile Include="src\states\PreGameLoadingState.ts" />
     <TypeScriptCompile Include="src\states\States.ts" />
+    <TypeScriptCompile Include="src\tilemap\CustomPathfindingGridNode.ts" />
     <TypeScriptCompile Include="src\tilemap\GameMap.ts" />
+    <TypeScriptCompile Include="src\tilemap\OccupiedGrid.ts" />
+    <TypeScriptCompile Include="src\tilemap\Path.ts" />
     <TypeScriptCompile Include="src\tilemap\Pathfinding.ts" />
+    <TypeScriptCompile Include="src\util\Arrays.ts" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="js\phaser.map" />
@@ -83,6 +94,12 @@
     <Content Include="assets\maps\scripts.json" />
     <Content Include="assets\textures\weapons\charge.anim" />
     <Content Include="assets\textures\weapons\charge.sprites" />
+    <Content Include="assets\textures\characters\tank_merc.anim" />
+    <Content Include="assets\textures\characters\tank_merc.sprites" />
+    <Content Include="assets\textures\characters\enemy.anim" />
+    <Content Include="assets\textures\characters\enemy.sprites" />
+    <Content Include="assets\textures\characters\hero.anim" />
+    <Content Include="assets\textures\characters\hero.sprites" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

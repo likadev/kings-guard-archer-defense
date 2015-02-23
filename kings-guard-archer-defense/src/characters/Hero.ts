@@ -6,16 +6,16 @@
 
 module KGAD {
     export class Hero extends AnimatedSprite {
+        public static KEY = "hero";
+
         private keys: {};
         private movementKeyState: { up: boolean; right: boolean; left: boolean; down: boolean; };
         private fireKey: Array<Phaser.Key>;
         private canMove: boolean;
         private chargeDirection: Directions;
         private nextAnimation: string;
-        private movementSpeed: number;
         private moving: boolean;
         private lastChargingState: boolean;
-        private movementTween: Phaser.Tween;
         private damageTween: Phaser.Tween;
         private nextTile: Phaser.Point;
         private lastTile: Phaser.Point;
@@ -58,8 +58,11 @@ module KGAD {
             return 1;
         }
 
-        init(): void {
-            super.init();
+        init(...args: any[]): void {
+            super.init(args);
+
+            this.weapon.chargeSprite = new BowCharge(this.game, 0, 0, 'charge');
+            this.weapon.chargeSprite.init();
 
             this.body.immovable = true;
             this.lastTile = <Phaser.Point>Game.CurrentMap.fromPixels(this.position);
@@ -175,7 +178,7 @@ module KGAD {
                 return;
             }
 
-            var projectiles = GameInfo.CurrentGame.projectiles;
+            var projectiles = Game.Projectiles;
 
             if (this.weapon.canFire) {
                 projectiles.fire(this.x, this.y, this, this.weapon, chargePower);
@@ -204,6 +207,10 @@ module KGAD {
          */
         private handleMovement(direction: Directions) {
             if (/*(this.movementTween != null && this.movementTween.isRunning) || */!this.canMove) {
+                return;
+            }
+
+            if (!this.alive) {
                 return;
             }
 
@@ -236,6 +243,7 @@ module KGAD {
             this.action = Actions.Moving;
             this.updateAnimation();
             MovementHelper.move(this, direction, speed);
+            this.moving = true;
 
             //var timeToMove = this.weapon.isCharging() ? this.movementSpeed * 2 : this.movementSpeed;
             //this.moveToNextTile(timeToMove);
@@ -334,7 +342,7 @@ module KGAD {
 
             if (this.moving) {
                 if (this.lastChargingState !== this.weapon.isCharging()) {
-                    this.chargeDirection = this.direction;
+                    //this.chargeDirection = this.direction;
                     this.lastChargingState = this.weapon.isCharging();
                     this.updateMovementState();
                     //this.handleMovement(this.direction);

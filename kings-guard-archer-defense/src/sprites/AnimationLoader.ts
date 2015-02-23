@@ -2,14 +2,6 @@
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 module KGAD {
-    class AniamtedSpriteActivator<T> {
-        constructor(private typ) { }
-
-        getNew(game, x, y, key?, frame?): T {
-            return new this.typ(game, x, y, key, frame);
-        }
-    }
-
     export class AnimationLoader {
         private static loadCount: number = 0;
         private static animationDataParsed: number = 0;
@@ -162,10 +154,11 @@ module KGAD {
             return null;
         }
 
-        public static addAnimationToSprite(sprite: Phaser.Sprite, animationData: any) {
+        public static addAnimationToSprite(sprite: Phaser.Sprite, animationKey: any) {
             var rate = 0;
-            if (typeof animationData === 'string') {
-                animationData = Game.Instance.cache.getJSON(animationData);
+            var animationData;
+            if (typeof animationKey === 'string') {
+                animationData = Game.Instance.cache.getJSON(animationKey);
                 for (var j = 0, len = animationData.length; j < len; ++j) {
                     var animation = animationData[j];
                     rate = 1000 / (30 - (30 * (1 - animation.frameRate)));
@@ -173,8 +166,8 @@ module KGAD {
                 }
             }
             else {
-                rate = 1000 / (30 - (30 * (1 - animationData.frameRate)));
-                sprite.animations.add(animationData.name, animationData.frames, rate, animationData.loops);
+                rate = 1000 / (30 - (30 * (1 - animationKey.frameRate)));
+                sprite.animations.add(animationKey.name, animationKey.frames, rate, animationKey.loops);
             }
         }
 
