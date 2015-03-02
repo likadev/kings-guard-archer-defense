@@ -11,7 +11,13 @@
       <spr name="/down/down_walk_1" x="0" y="0" z="0"/>
     </cell>
     <cell index="1" delay="6">
+      <spr name="/down/down_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="6">
       <spr name="/down/down_walk_2" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="6">
+      <spr name="/down/down_idle" x="0" y="0" z="0"/>
     </cell>
   </anim>
   <anim name="face_left" loops="0">
@@ -34,7 +40,13 @@
       <spr name="/right/right_walk_1" x="0" y="0" z="0"/>
     </cell>
     <cell index="1" delay="6">
+      <spr name="/right/right_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="6">
       <spr name="/right/right_walk_2" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="6">
+      <spr name="/right/right_idle" x="0" y="0" z="0"/>
     </cell>
   </anim>
   <anim name="walk_left" loops="0">
@@ -42,7 +54,13 @@
       <spr name="/left/left_walk_1" x="0" y="0" z="0"/>
     </cell>
     <cell index="1" delay="6">
+      <spr name="/left/left_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="6">
       <spr name="/left/left_walk_2" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="6">
+      <spr name="/left/left_idle" x="0" y="0" z="0"/>
     </cell>
   </anim>
   <anim name="walk_up" loops="0">
@@ -50,7 +68,187 @@
       <spr name="/up/up_walk_1" x="0" y="0" z="0"/>
     </cell>
     <cell index="1" delay="6">
+      <spr name="/up/up_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="6">
       <spr name="/up/up_walk_2" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="6">
+      <spr name="/up/up_idle" x="0" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="frontswing_down" loops="1">
+    <cell index="0" delay="2">
+      <spr name="/down/down_firing_1" x="0" y="1" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/down/down_firing_2" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="2">
+      <spr name="/down/down_firing_3" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="2">
+      <spr name="/down/down_firing_4" x="1" y="-1" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_down" loops="0">
+    <cell index="0" delay="1">
+      <spr name="/down/down_firing_4" x="1" y="-1" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_walk_down" loops="0">
+    <cell index="0" delay="15">
+      <spr name="/down/down_firing_4" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="15">
+      <spr name="/down/down_charge_walk_1" x="0" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="backswing_down" loops="1">
+    <cell index="0" delay="3">
+      <spr name="/down/down_backswing_1" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/down/down_backswing_2" x="-1" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="frontswing_up" loops="1">
+    <cell index="0" delay="2">
+      <spr name="/up/up_firing_1" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/up/up_firing_2" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="2">
+      <spr name="/up/up_firing_3" x="0" y="1" z="0"/>
+    </cell>
+    <cell index="3" delay="2">
+      <spr name="/up/up_firing_4" x="0" y="1" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_up" loops="0">
+    <cell index="0" delay="1">
+      <spr name="/up/up_firing_4" x="0" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_walk_up" loops="0">
+    <cell index="0" delay="15">
+      <spr name="/up/up_firing_4" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="15">
+      <spr name="/up/up_charge_walk_1" x="0" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="backswing_up" loops="1">
+    <cell index="0" delay="3">
+      <spr name="/up/up_backswing_1" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/up/up_backswing_2" x="0" y="-1" z="0"/>
+    </cell>
+  </anim>
+  <anim name="frontswing_left" loops="1">
+    <cell index="0" delay="2">
+      <spr name="/left/left_firing_1" x="-5" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/left/left_firing_2" x="-4" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="2">
+      <spr name="/left/left_firing_3" x="-4" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="2">
+      <spr name="/left/left_firing_4" x="-2" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_left" loops="0">
+    <cell index="0" delay="1">
+      <spr name="/left/left_firing_4" x="-2" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_walk_left" loops="0">
+    <cell index="0" delay="15">
+      <spr name="/left/left_firing_4" x="-2" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="15">
+      <spr name="/left/left_charge_walk_1" x="-2" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="backswing_left" loops="0">
+    <cell index="0" delay="3">
+      <spr name="/left/left_backswing_1" x="-4" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/left/left_backswing_2" x="-5" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="frontswing_right" loops="1">
+    <cell index="0" delay="2">
+      <spr name="/right/right_firing_1" x="5" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/right/right_firing_2" x="5" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="2">
+      <spr name="/right/right_firing_3" x="4" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="2">
+      <spr name="/right/right_firing_4" x="3" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_right" loops="0">
+    <cell index="0" delay="1">
+      <spr name="/right/right_firing_4" x="3" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="charge_walk_right" loops="0">
+    <cell index="0" delay="15">
+      <spr name="/right/right_firing_4" x="3" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="15">
+      <spr name="/right/right_charge_walk_1" x="4" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="backswing_right" loops="0">
+    <cell index="0" delay="3">
+      <spr name="/right/right_backswing_1" x="2" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/right/right_backswing_2" x="2" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="dying_down" loops="1">
+    <cell index="0" delay="2">
+      <spr name="/down/down_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="1" delay="2">
+      <spr name="/left/left_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="2" delay="2">
+      <spr name="/up/up_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="3" delay="2">
+      <spr name="/right/right_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="4" delay="2">
+      <spr name="/down/down_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="5" delay="2">
+      <spr name="/left/left_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="6" delay="2">
+      <spr name="/up/up_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="7" delay="2">
+      <spr name="/right/right_idle" x="0" y="0" z="0"/>
+    </cell>
+    <cell index="8" delay="2">
+      <spr name="/down/down_idle" x="0" y="0" z="0"/>
+    </cell>
+  </anim>
+  <anim name="dead_down" loops="0">
+    <cell index="0" delay="1">
+      <spr name="/down/down_idle" x="0" y="0" z="0"/>
     </cell>
   </anim>
 </animations>

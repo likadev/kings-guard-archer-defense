@@ -6,7 +6,12 @@
                     "delay": 0,
                     "sequence": [
                         {
-                            "addEnemyTypes": [ "enemy" ],
+                            "addEnemyTypes": [
+                                {
+                                    "key": "enemy",
+                                    "priority": 1
+                                }
+                            ],
                             "every": 6000,
                             "times": 6
                         },
@@ -15,15 +20,45 @@
                             "times": 4
                         },
                         {
-                            "every": 2000,
-                            "times": 8
+                            "every": 2500,
+                            "times": 4
+                        }
+                    ]
+                },
+                {
+                    "sequence": [
+                        {
+                            "addEnemyTypes": [
+                                {
+                                    "key": "enemy",
+                                    "priority": 1
+                                }
+                            ],
+                            "every": 5000
+                        }
+                    ]
+                },
+                {
+                    "sequence": [
+                        {
+                            "addEnemyTypes": [
+                                {
+                                    "key": "enemy",
+                                    "priority": 1
+                                }
+                            ],
+                            "every": 5000
                         },
                         {
                             "delay": 2000,
                             "boss": true,
-                            "removeEnemyTypes": [ "enemy" ],
+                            "removeEnemyTypes": [
+                                {
+                                    "key": "enemy"
+                                } 
+                            ],
                             "addEnemyTypes": [ "boss" ],
-                            "spawnPointIndex": 0
+                            "spawnPointName": "boss"
                         }
                     ]
                 }
