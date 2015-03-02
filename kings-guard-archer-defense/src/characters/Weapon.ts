@@ -10,32 +10,59 @@ module KGAD {
         private chargeStartTime: number;
         private minimumChargeTime: number;
         private fullChargeTime: number;
+        private deadKey: string;
+        private frontSwingTime: number;
+        public cooldown: number;
+        public projectileSpeed: number;
+        public power: number;
+        public aliveTime: number;
+        public chargeSprite: AnimatedSprite;
         public frontSwing: number = 0;
         public backSwing: number = 0;
         public range: number = 32;
 
-        constructor(public game: Phaser.Game, public key: string, public cooldown: number, public projectileSpeed: number = 0,
-            public power: number = 1, public aliveTime: number = 5000, public chargeSprite: AnimatedSprite = null) {
+        constructor(public game: Phaser.Game, public key: string, opts?: WeaponOptions) {
+            this.setOptions(opts);
+
             this.lastFire = 0;
-            this.charging = false;
             this.chargeTime = 0;
-            this.minimumChargeTime = 150;
+            this.charging = false;
+            this.minimumChargeTime = 240;
             this.fullChargeTime = 1000;
         }
 
-        preload(): void {
-            
-            if (!this.game.cache.checkImageKey(this.key)) {
-                var url: string = 'assets/textures/weapons/' + this.key + '.png';
-                this.game.load.image(this.key, url);
-            }
+        private setOptions(opts?: WeaponOptions) {
+            opts = opts || {};
 
-            if (this.chargeSprite != null) {
-                this.chargeSprite.canOccupyTiles = false;
-                this.chargeSprite.preload();
-                this.chargeSprite.init();
-                this.chargeSprite.visible = false;
-            }
+            this.frontSwing = opts.frontSwing || 0;
+
+            this.backSwing = opts.backSwing || 0;
+
+            this.range = opts.range || GameMap.TILE_WIDTH;
+
+            this.deadKey = opts.deadProjectileKey || null;
+
+            this.chargeSprite = opts.chargeSprite || null;
+
+            this.projectileSpeed = opts.projectileSpeed || 1;
+
+            this.power = opts.power || 1;
+
+            this.aliveTime = opts.aliveTime || 5000;
+
+            this.cooldown = opts.cooldown || 0;
+
+            this.minimumChargeTime = opts.chargeTime || 240;
+
+            this.fullChargeTime = opts.fullChargeTime || 1000;
+        }
+
+        public get deadProjectileKey(): string {
+            return this.deadKey;
+        }
+
+        public set deadProjectileKey(key: string) {
+            this.deadKey = key;
         }
 
         public get canFire(): boolean {
@@ -51,6 +78,16 @@ module KGAD {
             return !(delta >= this.backSwing);
         }
 
+        public isFrontSwinging(): boolean {
+            var delta = this.game.time.now - this.frontSwingTime;
+            return delta < this.frontSwing;
+        }
+
+        public startFrontSwinging(): boolean {
+            this.frontSwingTime = this.game.time.now;
+            return this.isFrontSwinging();
+        }
+
         public isCharging(): boolean {
             this.chargeTime = this.game.time.now - this.chargeStartTime;
             if (this.chargeTime >= this.minimumChargeTime) {
@@ -59,7 +96,6 @@ module KGAD {
             else {
                 return false;
             }
-            //return this.charging;
         }
 
         public get currentPower(): number {
@@ -97,6 +133,20 @@ module KGAD {
                 this.chargeSprite.visible = false;
             }
 
+        }
+
+        public preload(): void {
+            if (!this.game.cache.checkImageKey(this.key)) {
+                var url: string = 'assets/textures/weapons/' + this.key + '.png';
+                this.game.load.image(this.key, url);
+            }
+
+            if (this.chargeSprite != null) {
+                this.chargeSprite.canOccupyTiles = false;
+                this.chargeSprite.preload();
+                this.chargeSprite.init();
+                this.chargeSprite.visible = false;
+            }
         }
 
         update(owner?: AnimatedSprite): void {

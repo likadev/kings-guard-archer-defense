@@ -46,7 +46,14 @@ module KGAD {
          */
         public static createDamageTween(obj: AnimatedSprite): Phaser.Tween {
             var game = Game.Instance;
-            var tween = game.add.tween(obj).to({ tint: 0xFF3333 }, 35, Phaser.Easing.Cubic.InOut, false, 0, 2, true);
+
+            var tintValue = 0xFF3333;
+            if (game.device.firefox && game.renderType === Phaser.CANVAS) {
+                // Canvas tint rendering + Phaser 2.2.1 is broken
+                tintValue = 0xFFFFFF;
+            }
+
+            var tween = game.add.tween(obj).to({ tint: tintValue }, 35, Phaser.Easing.Cubic.InOut, false, 0, 2, true);
             obj.tint = 0xFFFFFF;
             return tween;
         }

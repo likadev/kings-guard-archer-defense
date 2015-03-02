@@ -12,7 +12,6 @@ module KGAD {
 
         private static _map: GameMap;
         private static _grid: Array<AnimatedSprite>;
-        private static _reservations: Array<Reservation>;
         private static _width: number;
         private static _height: number;
 
@@ -336,7 +335,6 @@ module KGAD {
             }
 
             OccupiedGrid._grid = grid;
-            OccupiedGrid._reservations = [];
             OccupiedGrid._width = w;
             OccupiedGrid._height = h;
         }
@@ -380,22 +378,25 @@ module KGAD {
          *  Checks if the given sprite can occupy the given (x, y) pixel coordinate.
          */
         public static canOccupyInPixels(sprite: AnimatedSprite, x: number|Phaser.Point, y?: number, collisions: AnimatedSprite[] = []): boolean {
+            var pixelPos: Phaser.Point = null;
             var p: Phaser.Point = null;
             var nodeSize = OccupiedGrid.NODE_SIZE;
             if (typeof x === 'number') {
                 p = new Phaser.Point(Math.floor(x / nodeSize), Math.floor(y / nodeSize));
+                pixelPos = new Phaser.Point(x, y);
             }
             else {
                 p = new Phaser.Point(Math.floor(x.x / nodeSize), Math.floor(x.y / nodeSize));
+                pixelPos = x;
             }
 
-            return OccupiedGrid.canOccupy(sprite, p, null, collisions);
+            return OccupiedGrid.canOccupy(sprite, p, null, collisions, pixelPos);
         }
 
         /**
          *  Checks if the given sprite can occupy the given (x, y) tile coordinate.
          */
-        public static canOccupy(sprite: AnimatedSprite, x: number|Phaser.Point, y?: number, collisions: AnimatedSprite[] = []): boolean {
+        public static canOccupy(sprite: AnimatedSprite, x: number|Phaser.Point, y?: number, collisions: AnimatedSprite[] = [], pixelPos?: Phaser.Point): boolean {
             var p: Phaser.Point = null;
             if (typeof x === 'number') {
                 p = new Phaser.Point(x, y);
@@ -406,7 +407,7 @@ module KGAD {
 
             var indices: number[];
             if (sprite == null) {
-                var pixelPos = new Phaser.Point(p.x * OccupiedGrid.NODE_SIZE, p.y * OccupiedGrid.NODE_SIZE);
+                var pixelPos = pixelPos || new Phaser.Point(p.x * OccupiedGrid.NODE_SIZE, p.y * OccupiedGrid.NODE_SIZE);
                 indices = OccupiedGrid.getIndicesOfRect(OccupiedGrid.getBoundsAtCenter(pixelPos), true);
             }
             else {
@@ -453,118 +454,6 @@ module KGAD {
         }
 
         /**
-         *  Reserves a spot for our sprite in the near future.
-         */
-        public static reserve(sprite: AnimatedSprite, position: Phaser.Point): boolean {
-            var savePosition = sprite.position;
-            sprite.position = position;
-            var indices = OccupiedGrid.getIndicesOfSprite(sprite);
-            sprite.position = savePosition;
-
-            if ($.inArray(-1, indices) < 0) {
-                return false;
-            }
-
-            var grid = OccupiedGrid._grid;
-            for (var i = 0, l = indices.length; i < l; ++i) {
-                var idx = indices[i];
-                var occupant = grid[idx];
-                if (occupant != null && occupant !== sprite) {
-                    return false;
-                }
-
-                var reservedBy = OccupiedGrid.getReservationForIndex(idx);
-                if (reservedBy != null && reservedBy !== sprite) {
-                    return false;
-                }
-            }
-
-            var reservation = {
-                sprite: sprite,
-                indices: indices
-            };
-
-            OccupiedGrid._reservations.push(reservation);
-
-            return true;
-        }
-
-        /**
-         *  Gets who, if anyone, has reserved an index.
-         */
-        public static getReservationForIndex(index: number): AnimatedSprite {
-            var who: AnimatedSprite = null;
-            var cleanup: Reservation[] = [];
-            var reservations = OccupiedGrid._reservations;
-
-            for (var i = 0, l = reservations.length; i < l; ++i) {
-                var reservation = reservations[i];
-                var sprite = reservation.sprite;
-                if (!sprite.alive || !sprite.exists || sprite.health <= 0) {
-                    cleanup.push(reservation);
-                }
-                else if ($.inArray(index, reservation.indices)) {
-                    who = reservation.sprite;
-                    break;
-                }
-            }
-
-            for (var j = 0, k = cleanup.length; j < k; ++j) {
-                OccupiedGrid._reservations.splice($.inArray(cleanup[j], reservations), 1);
-            }
-
-            return who;
-        }
-
-        /**
-         *  Gets all reservations for any indices.
-         */
-        public static getReservationsForIndices(indices: number[]): AnimatedSprite[]{
-            var sprites: AnimatedSprite[] = [];
-
-            for (var i = 0, l = indices.length; i < l; ++i) {
-                var idx = indices[i];
-                sprites.push(OccupiedGrid.getReservationForIndex(idx));
-            }
-
-            return sprites;
-        }
-
-        /**
-         *  Remove the given indices/reservations.
-         */
-        public static removeReservations(sprite: AnimatedSprite, indices?: number[]) {
-            var reservations = OccupiedGrid._reservations;
-            var cleanup: Reservation[] = [];
-
-            for (var i = 0, l = reservations.length; i < l; ++i) {
-                var reservation = reservations[i];
-                if (reservation.sprite === sprite) {
-                    if (indices) {
-                        for (var j = 0, m = indices.length; j < m; ++j) {
-                            var idx = indices[j];
-                            var reservationIdx = $.inArray(idx, reservation.indices);
-                            if (reservationIdx >= 0) {
-                                reservation.indices.splice(reservationIdx, 1);
-                            }
-                        }
-                    }
-                    else {
-                        reservation.indices = [];
-                    }
-                }
-
-                if (reservation.indices.length === 0) {
-                    cleanup.push(reservation);
-                }
-            }
-
-            for (i = 0, l = cleanup.length; i < l; ++i) {
-                reservations.splice($.inArray(cleanup[i], reservations), 1);
-            }
-        }
-
-        /**
          *  Converts a pathfinding path generated for a 32x32 tilemap and 
          */
         public static convertToGridPath(path: Path<Phaser.Point>): Path<Phaser.Rectangle> {
@@ -605,32 +494,38 @@ module KGAD {
         /**
          *  Adds a sprite as the occupant of the grid.
          */
-        public static add(sprite: AnimatedSprite): boolean {
+        public static add(sprite: AnimatedSprite, occupants: AnimatedSprite[] = []): boolean {
             if (!sprite.alive || !sprite.exists || sprite.health <= 0) {
-                OccupiedGrid.removeReservations(sprite);
                 OccupiedGrid.remove(sprite);
                 return false;
             }
-            
-            OccupiedGrid.remove(sprite);
 
-            var indices: number[] = OccupiedGrid.getIndicesOfSprite(sprite);
-            var reservations = OccupiedGrid.getReservationsForIndices(indices);
+            var indices: number[] = OccupiedGrid.getIndicesOfSprite(sprite, true);
+            if ($.inArray(-1, indices) >= 0) {
+                return false;
+            }
 
-            for (var k = 0, m = reservations.length; k < m; ++k) {
-                var reservation = reservations[k];
-                if (reservation != null && reservation !== sprite) {
-                    return false;
+            var canOccupy = true;
+
+            var idx;
+            for (var j = 0, l = indices.length; j < l; ++j) {
+                idx = indices[j];
+                var occupant = OccupiedGrid._grid[idx];
+                if (occupant && occupant !== sprite) {
+                    canOccupy = false;
+                    occupants.push(occupant);
                 }
             }
 
-            OccupiedGrid.removeReservations(sprite, indices);
+            if (!canOccupy) {
+                return false;
+            }
 
-            for (var j = 0, l = indices.length; j < l; ++j) {
-                var idx = indices[j];
-                if (idx !== -1) {
-                    OccupiedGrid._grid[idx] = sprite;
-                }
+            OccupiedGrid.remove(sprite);
+
+            for (j = 0, l = indices.length; j < l; ++j) {
+                idx = indices[j];
+                OccupiedGrid._grid[idx] = sprite;
             }
 
             return true;

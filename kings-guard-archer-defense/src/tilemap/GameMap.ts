@@ -80,9 +80,9 @@ module KGAD {
         /**
          *  Converts a tile numeric value to pixels.
          */
-        public toPixels(x: number|Phaser.Point): number|Phaser.Point {
+        public toPixels(x: number|Phaser.Point, y?: number): Phaser.Point {
             if (typeof x === 'number') {
-                return x * GameMap.TILE_WIDTH;
+                return new Phaser.Point(x * GameMap.TILE_WIDTH, y * GameMap.TILE_HEIGHT);
             }
             else {
                 return Phaser.Point.multiply(x, new Phaser.Point(GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT));
@@ -92,12 +92,12 @@ module KGAD {
         /**
          *  Converts a number or point to tile coordinates.
          */
-        public fromPixels(num: number|Phaser.Point): number|Phaser.Point {
-            if (typeof num === 'number') {
-                return Math.floor((<number>num) / GameMap.TILE_WIDTH);
+        public fromPixels(x: number|Phaser.Point, y?: number): Phaser.Point {
+            if (typeof x === 'number') {
+                return new Phaser.Point(Math.floor(x / GameMap.TILE_WIDTH), Math.floor(y / GameMap.TILE_HEIGHT));
             }
             else {
-                return new Phaser.Point(Math.floor(num.x / GameMap.TILE_WIDTH), Math.floor(num.y / GameMap.TILE_HEIGHT));
+                return new Phaser.Point(Math.floor(x.x / GameMap.TILE_WIDTH), Math.floor(x.y / GameMap.TILE_HEIGHT));
             }
         }
 
@@ -244,6 +244,10 @@ module KGAD {
                             this.enemySpawns.push(new Phaser.Point(tile.x, tile.y));
                         }
                     }
+                }
+
+                if (isVisible) {
+                    //layer.smoothed = true;
                 }
 
                 layer.resizeWorld();

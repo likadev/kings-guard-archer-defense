@@ -10,6 +10,8 @@ module KGAD {
         private static currentMap: GameMap = null;
         private static actors: Actors = null;
         private static simulation: GameSimulationState = null;
+        private static _onBlur: Phaser.Signal;
+        private static _onFocus: Phaser.Signal;
 
         /**
          *  Gets the current game instance.
@@ -88,14 +90,44 @@ module KGAD {
             return this.Simulation == null ? null : this.Simulation.projectiles;
         }
 
-        constructor(width: number, height: number, container: string) {
-            super(width, height, Phaser.AUTO, container);
+        public static get onBlur() {
+            return this._onBlur;
+        }
 
+        public static get onFocus() {
+            return this._onFocus;
+        }
+
+        constructor(width: number, height: number, container: string) {
             if (Game.instance != null) {
                 throw Error('Cannot create more than one \'Game\' instance!');
             }
 
+            // please note, that IE11 now returns undefined again for window.chrome
+            var isChromium = (<any>window).chrome,
+                vendorName = window.navigator.vendor;
+            var isChrome = (isChromium !== null && isChromium !== undefined && vendorName === "Google Inc.");
+            var isFirefox: boolean = /firefox/.test(navigator.userAgent.toLowerCase());
+
+            var renderer = isFirefox ? Phaser.CANVAS : Phaser.AUTO;
+            super(width, height, renderer, container);
+
             Game.instance = this;
+
+            Game._onBlur = new Phaser.Signal();
+            Game._onFocus = new Phaser.Signal();
+
+            if (!isChrome) {
+                $('#messages').append(
+                    $('<div>').html('For the best experience, please use <a href="https://www.google.com/chrome/browser/">Google Chrome</a>.')
+                );
+            }
+
+            if (isFirefox && this.renderType === Phaser.CANVAS) {
+                $('#messages').append(
+                    $('<div>').html('The "damage flicker" on-hit effect is disabled in Firefox canvas rendering mode due to a crashing bug in Phaser/PIXI.')
+                );
+            }
 
             var states = new States();
             states.setUpStates();
@@ -106,8 +138,58 @@ module KGAD {
 
 window.onload = () => {
     try {
+        var game: KGAD.Game = null;
+
+        (function () {
+            var hidden = "hidden";
+
+            // Standards:
+            if (hidden in document)
+                document.addEventListener("visibilitychange", onchange);
+            else if ((hidden = "mozHidden") in document)
+                document.addEventListener("mozvisibilitychange", onchange);
+            else if ((hidden = "webkitHidden") in document)
+                document.addEventListener("webkitvisibilitychange", onchange);
+            else if ((hidden = "msHidden") in document)
+                document.addEventListener("msvisibilitychange", onchange);
+            // IE 9 and lower:
+            else if ("onfocusin" in document)
+                document.onfocusin = document.onfocusout = onchange;
+            // All others:
+            else
+                window.onpageshow = window.onpagehide
+                = window.onfocus = window.onblur = onchange;
+
+            function onchange(evt) {
+                var v = "visible", h = "hidden",
+                    evtMap = {
+                        focus: v, focusin: v, pageshow: v, blur: h, focusout: h, pagehide: h
+                    };
+
+                evt = evt || window.event;
+                if (evt.type in evtMap)
+                    document.body.className = evtMap[evt.type];
+                else
+                    document.body.className = this[hidden] ? "hidden" : "visible";
+
+                if (game) {
+                    if (document.body.className.match(/hidden/)) {
+                        game.input.gamepad.stop();
+                    }
+                    else {
+                        game.input.gamepad.start();
+                    }
+                }
+            }
+
+            // set the initial state (but only if browser supports the Page Visibility API)
+            if (document[hidden] !== undefined)
+                onchange({ type: document[hidden] ? "blur" : "focus" });
+        })();
+
         $('#content').html('');
-        var game = new KGAD.Game(640, 640, 'content');
+
+        game = new KGAD.Game(640, 640, 'content');
     }
     finally {
 

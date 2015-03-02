@@ -22,9 +22,12 @@ module KGAD {
         }
 
         init(...args: any[]) {
-            this.weapon = new Weapon(this.game, 'short_sword', 1500, 0, 1, 0, null);
-            this.weapon.backSwing = 500;
-            this.weapon.range = 32;
+            this.weapon = new Weapon(this.game, 'short_sword', {
+                cooldown: 1500,
+                range: 33,
+                backSwing: 500,
+                power: 1,
+            });
 
             this.threatTable = new ThreatTable(this);
             this.threatTable.highestThreatChanged.add((sprite) => { this.onHighestThreatTargetChanged(sprite); });
@@ -95,7 +98,8 @@ module KGAD {
                 this.tint = 0xFFFFFF;
             }
 
-            this.damageTween = this.game.add.tween(this).to({ tint: 0xFF3333 }, 35, Phaser.Easing.Cubic.InOut, true, 0, 2, true);
+            this.damageTween = AnimationHelper.createDamageTween(this);
+            this.damageTween.start();
 
             return this;
         }

@@ -8,15 +8,18 @@ module KGAD {
         public default_animation: string = 'face_down';
         public action: Actions;
         public direction: Directions;
-        public tilePosition: Phaser.Point;
+        public node: Phaser.Point;
+        public movementSpeed: number;
         private added: boolean;
         protected lastPosition: Phaser.Point;
-        protected lastTilePosition: Phaser.Point;
+        protected lastNode: Phaser.Point;
         protected canOccupy: boolean;
         protected isBlocked: boolean;
-        protected movementTween: Phaser.Tween;
+        protected movementTween: MoveTween;
+        protected damageTween: Phaser.Tween;
         protected pathFindingMover: PathMovementMachine;
-        protected movementSpeed: number;
+        protected sequentialBlocks: number;
+        protected _moving: boolean;
 
         public blocked: Phaser.Signal;
         public movementTweenCompleted: Phaser.Signal;
@@ -33,6 +36,7 @@ module KGAD {
             this.added = false;
             this.canOccupy = true;
             this.isBlocked = false;
+            this.sequentialBlocks = 0;
 
             this.blocked = new Phaser.Signal();
             this.movementTweenCompleted = new Phaser.Signal();
@@ -62,10 +66,6 @@ module KGAD {
             return Game.CurrentMap;
         }
 
-        public preload(): void {
-
-        }
-
         public get weight(): number {
             if (this.action === Actions.Dying || this.action === Actions.Dead) {
                 return 1;
@@ -77,6 +77,8 @@ module KGAD {
         public get alliance(): Alliance {
             return Alliance.Ally;
         }
+
+        public preload(): void {}
 
         public addToWorld(): void {
             if (!this.added) {
@@ -90,9 +92,9 @@ module KGAD {
                 this.added = true;
             }
 
-            this.lastPosition = this.position;
-            this.tilePosition = new Phaser.Point(Math.floor(this.x / GameMap.TILE_WIDTH), Math.floor(this.y / GameMap.TILE_HEIGHT));
-            this.lastTilePosition = new Phaser.Point(this.tilePosition.x, this.tilePosition.y);
+            this.lastPosition = this.position.clone();
+            this.lastNode = this.node;
+            this.node = new Phaser.Point(Math.floor(this.x / OccupiedGrid.NODE_SIZE), Math.floor(this.y / OccupiedGrid.NODE_SIZE));
 
             var addCallback: () => any = null;
             addCallback = () => {
@@ -110,11 +112,18 @@ module KGAD {
             addCallback();
         }
 
+        /**
+         *  Face towards another sprite.
+         */
         public face(sprite: AnimatedSprite) {
             var angle = this.game.physics.arcade.angleBetween(this.position, sprite.position);
             this.direction = MovementHelper.getDirectionFromAngle(angle);
+            this.updateAnimation();
         }
 
+        /**
+         *  Updates the animation for the sprite.
+         */
         public updateAnimation(onComplete?: () => any): void {
             var animationName: string = AnimationHelper.getCurrentAnimation(this);
             var currentAnimation = this.animations.currentAnim;
@@ -137,24 +146,73 @@ module KGAD {
                     }
                 }
 
-                if (onComplete) {
+                if (onComplete && player != null) {
                     player.onComplete.addOnce(onComplete);
                 }
             }
         }
 
+        /**
+         *  Inflict damage to the sprite. This will show a damage tween and update the animation.
+         */
         public inflictDamage(amount: number, source: AnimatedSprite): AnimatedSprite {
             super.damage(amount);
 
+            if (this.damageTween != null && this.damageTween.isRunning) {
+                this.damageTween.stop(false);
+                this.tint = 0xFFFFFF;
+            }
+
+            this.damageTween = AnimationHelper.createDamageTween(this);
+            this.damageTween.start();
+
             if (this.health <= 0) {
                 OccupiedGrid.remove(this);
+
+                this.showDeathAnimation();
             }
 
             return this;
         }
 
+        /**
+         *
+         */
+        protected showDeathAnimation(onDeathAnimationComplete?: () => any) {
+            this.stopMovementTween();
+
+            var onAnimationComplete = () => {
+                this.action = Actions.Dead;
+                this.updateAnimation();
+
+                var targetAlpha = 0;
+
+                this.game.add.tween(this).to({ alpha: targetAlpha }, 500).start().onComplete.addOnce(() => {
+                    if (onDeathAnimationComplete) {
+                        onDeathAnimationComplete();
+                    }
+
+                    this.kill();
+                });
+            };
+
+            this.action = Actions.Dying;
+            this.direction = Directions.Down;
+            var animationName = AnimationHelper.getCurrentAnimation(this);
+            if (this.animations.getAnimation(animationName) == null) {
+                this.action = Actions.Dead;
+            }
+
+            this.updateAnimation(onAnimationComplete);
+        }
+
+        /**
+         *  Kills the sprite, removing it from the game.
+         */
         public kill(): Phaser.Sprite {
-            this.pathFindingMover.currentPath = null;
+            if (this.pathFindingMover) {
+                this.pathFindingMover.currentPath = null;
+            }
             this.pathFindingMover = null;
             this.stopMovementTween();
 
@@ -185,9 +243,6 @@ module KGAD {
         public moveTweenTo(position: { x: number; y: number; }): boolean {
             var distance = Phaser.Point.distance(this.position, position);
             if (distance <= 0.0001) {
-                setTimeout(() => {
-                    this.movementTweenCompleted.dispatch();
-                }, 0);
                 return false;
             }
 
@@ -197,17 +252,79 @@ module KGAD {
                 return false;
             }
 
+            var savedPosition = new Phaser.Point(this.x, this.y);
+            this.position = new Phaser.Point(position.x, position.y);
+            this.position = savedPosition;
+
             var timeToMove = (distance / this.movementSpeed) * 1000.0;
 
-            this.movementTween = this.game.add.tween(this)
+            /*this.movementTween = this.game.add.tween(this)
                 .to(position, timeToMove, Phaser.Easing.Linear.None, false, 0);
-            this.movementTween.onComplete.addOnce(() => { this.movementTweenCompleted.dispatch(); });
-            this.movementTween.start();
+            this.movementTween.onComplete.addOnce(() => {
+                this.movementTweenCompleted.dispatch();
+            });
+            this.movementTween.start();*/
+
+            this.movementTween = new MoveTween(this.game, this);
+            this.movementTween.moveTo(position.x, position.y);
+            this.movementTween.completed.addOnce(() => {
+                this.movementTweenCompleted.dispatch();
+            });
+            this.movementTween.blocked.addOnce((collisions: AnimatedSprite[]) => {
+                this.blocked.dispatch(collisions);
+            });
 
             return true;
         }
 
-        preUpdate(): void {
+        protected updateNodePosition() {
+            this.lastNode = this.node;
+            this.node = new Phaser.Point(Math.floor(this.x / OccupiedGrid.NODE_SIZE), Math.floor(this.y / OccupiedGrid.NODE_SIZE));
+        }
+
+        /**
+         *  Un-sets the current path, allowing a new one to be created.
+         */
+        protected unsetCurrentPath(): any {
+            this.pathFindingMover.currentPath = null;
+
+            return null;
+        }
+
+        /**
+         *  Moves to the next destination in the pathfinding node.
+         */
+        protected moveToNextDestination(): boolean {
+            if (this.isMoveTweening()) {
+                return false;
+            }
+
+            var path = this.pathFindingMover.currentPath;
+            if (path == null) {
+                return false;
+            }
+
+            var rect = path.next();
+            if (rect == null) {
+                this.unsetCurrentPath();
+                return false;
+            }
+
+            var center = new Phaser.Point(rect.centerX, rect.centerY);
+            var angle = this.game.physics.arcade.angleBetween(this.position, center);
+            this.direction = MovementHelper.getDirectionFromAngle(angle);
+            this.action = Actions.Moving;
+            this.updateAnimation();
+
+            this.moveTweenTo(center);
+
+            return true;
+        }
+
+        /**
+         *  Called before the 'update' step.
+         */
+        public preUpdate(): void {
             var map = Game.CurrentMap;
 
             if (!this.alive || !this.exists || this.health <= 0) {
@@ -215,33 +332,48 @@ module KGAD {
                 return;
             }
 
-            if (this.canOccupyTiles) {
-                var occupants: AnimatedSprite[] = [];
-                if (!OccupiedGrid.canOccupyInPixels(this, this.position, null, occupants)) {
-                    this.position = this.lastPosition;
-                    if (this.body) {
-                        this.body.velocity.setTo(0);
+            if (this.movementTween != null) {
+                this.movementTween.update();
+            }
+            else {
+                if (this.canOccupyTiles) {
+                    var occupants: AnimatedSprite[] = [];
+                    if (!OccupiedGrid.canOccupyInPixels(this, this.position, null, occupants)) {
+                        ++this.sequentialBlocks;
+                        this.position = this.lastPosition;
+                        if (this.body) {
+                            this.body.velocity.setTo(0);
+                        }
+
+                        this.stopMovementTween();
+                        this.isBlocked = true;
+
+                        this.blocked.dispatch(occupants);
+                    }
+                    else {
+                        this.sequentialBlocks = 0;
+                        this.isBlocked = false;
                     }
 
-                    this.stopMovementTween();
-                    this.isBlocked = true;
+                    occupants = [];
+                    if (this.sequentialBlocks > 15 || !OccupiedGrid.canOccupyInPixels(this, this.position, null, occupants)) {
+                        // If we still can't occupy it, resolve collision.
+                        //this.resolveCollision(occupants);
+                    }
 
-                    this.blocked.dispatch(occupants);
+                    OccupiedGrid.update(this);
                 }
-                else {
-                    this.isBlocked = false;
-                }
-
-                OccupiedGrid.update(this);
             }
 
-            this.tilePosition = <Phaser.Point>map.fromPixels(this.position);
+            this.updateNodePosition();
             this.lastPosition = new Phaser.Point(this.position.x, this.position.y);
-            this.lastTilePosition = new Phaser.Point(this.tilePosition.x, this.tilePosition.y);
 
             super.preUpdate();
         }
 
+        /**
+         *  
+         */
         update(): void {
             super.update();
         }

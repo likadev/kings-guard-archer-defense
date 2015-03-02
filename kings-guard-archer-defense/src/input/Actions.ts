@@ -7,9 +7,15 @@ module KGAD {
 
         public static get Moving() { return 'walk'; }
 
+        public static get Frontswinging() { return 'frontswing'; }
+
         public static get Charging() { return 'charge'; }
 
+        public static get ChargeWalking() { return 'charge_walk'; }
+
         public static get Firing() { return 'fire'; }
+
+        public static get Backswinging() { return 'backswing'; }
 
         public static get Casting() { return 'cast'; }
 

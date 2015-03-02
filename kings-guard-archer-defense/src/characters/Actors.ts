@@ -97,6 +97,7 @@ module KGAD {
                 created.addToWorld();
             }
 
+            //this.children.push(created);
             //this.add(created);
 
             return created;
@@ -142,7 +143,8 @@ module KGAD {
             }
 
             this.classType = Enemy;
-            var enemy = this.create(position.x, position.y, key);
+            var enemy: Enemy = this.create(position.x, position.y, key);
+            enemy.position.set(position.x, position.y);
             this._enemies.push(enemy);
             return enemy;
         }
@@ -228,9 +230,10 @@ module KGAD {
             this.removeDeadActors(this._mercenaries);
             this.removeDeadActors(this._enemies);
 
+            this.sort('y', Phaser.Group.SORT_ASCENDING);
             super.update();
 
-            this.sort('y', Phaser.Group.SORT_ASCENDING);
+            
         }
 
         render(): void {

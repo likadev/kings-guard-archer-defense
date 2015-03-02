@@ -23,7 +23,9 @@
     <Content Include="assets\textures\characters\hero_worksheet.png" />
     <Content Include="assets\textures\characters\king.png" />
     <Content Include="assets\textures\characters\tank_merc.png" />
+    <Content Include="assets\textures\misc\black.png" />
     <Content Include="assets\textures\weapons\basic_arrow.png" />
+    <Content Include="assets\textures\weapons\basic_arrow_dead.png" />
     <Content Include="assets\textures\weapons\charge.png" />
     <Content Include="assets\tilesets\dw_tileset_32x32.png" />
     <Content Include="assets\tilesets\modern_city_01_32x32.png" />
@@ -31,12 +33,16 @@
     <Content Include="css\app.css" />
     <Content Include="index.html" />
     <Content Include="js\astar.js" />
+    <Content Include="js\collections.js" />
     <Content Include="js\jquery-2.0.3.min.js" />
+    <Content Include="js\phaser-tiled.js" />
+    <Content Include="js\phaser.js" />
     <Content Include="js\phaser.min.js" />
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="definitions\astar.d.ts" />
+    <TypeScriptCompile Include="definitions\collections.d.ts" />
     <TypeScriptCompile Include="src\app.ts" />
     <TypeScriptCompile Include="definitions\jquery.d.ts" />
     <TypeScriptCompile Include="definitions\phaser.d.ts" />
@@ -51,12 +57,16 @@
     <TypeScriptCompile Include="src\characters\Mercenary.ts" />
     <TypeScriptCompile Include="src\characters\ProjectileGenerator.ts" />
     <TypeScriptCompile Include="src\characters\Weapon.ts" />
+    <TypeScriptCompile Include="src\characters\WeaponOptions.ts" />
     <TypeScriptCompile Include="src\game\ScriptEngine.ts" />
+    <TypeScriptCompile Include="src\game\scripting\Script.ts" />
     <TypeScriptCompile Include="src\game\ThreatTable.ts" />
     <TypeScriptCompile Include="src\input\Actions.ts" />
     <TypeScriptCompile Include="src\input\AnimationHelper.ts" />
     <TypeScriptCompile Include="src\input\Directions.ts" />
+    <TypeScriptCompile Include="src\input\InputButton.ts" />
     <TypeScriptCompile Include="src\input\MovementHelper.ts" />
+    <TypeScriptCompile Include="src\input\MoveTween.ts" />
     <TypeScriptCompile Include="src\sprites\AnimatedSprite.ts" />
     <TypeScriptCompile Include="src\sprites\AnimatedSpriteActivator.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\AnimationCellDefinition.ts" />
@@ -72,6 +82,7 @@
     <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
     <TypeScriptCompile Include="src\states\MainMenuState.ts" />
     <TypeScriptCompile Include="src\states\PreGameLoadingState.ts" />
+    <TypeScriptCompile Include="src\states\SkillChallengeIntroState.ts" />
     <TypeScriptCompile Include="src\states\States.ts" />
     <TypeScriptCompile Include="src\tilemap\CustomPathfindingGridNode.ts" />
     <TypeScriptCompile Include="src\tilemap\GameMap.ts" />

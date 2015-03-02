@@ -114,6 +114,9 @@ module KGAD {
             var group = this.getGroupByType(weapon.key);
 
             var sprite: FiredProjectile = group.create(x, y, weapon.key);
+            if (weapon.deadProjectileKey) {
+                sprite.deadSpriteKey = weapon.deadProjectileKey;
+            }
             sprite.rotation = Phaser.Point.angle(MovementHelper.getPointFromDirection(direction), new Phaser.Point());
             sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
@@ -147,6 +150,7 @@ module KGAD {
         }
 
         private onProjectileHitWall(proj: FiredProjectile) {
+            proj.hitWall();
             this.makeInactive(proj);
         }
     }

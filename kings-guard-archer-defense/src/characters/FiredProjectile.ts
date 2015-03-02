@@ -11,6 +11,7 @@ module KGAD {
         public chargePower: number;
         private offsetPosition: Phaser.Point;
         private originalDirection: Directions;
+        protected _deadSpriteKey: string;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
@@ -42,6 +43,14 @@ module KGAD {
             }
         }
 
+        public get deadSpriteKey() {
+            return this._deadSpriteKey;
+        }
+
+        public set deadSpriteKey(key: string) {
+            this._deadSpriteKey = key;
+        }
+
         public get power(): number {
             return Math.floor(this.weapon.power + 
                 (this.weapon.power * this.chargePower));
@@ -59,6 +68,9 @@ module KGAD {
         public attachTo(who: AnimatedSprite): void {
             this.attachedTo = who;
             this.dead = true;
+            if (this._deadSpriteKey) {
+                this.loadTexture(this._deadSpriteKey, 0, false);
+            }
 
             this.game.time.events.add(3000,() => {
                 this.game.add.tween(this).to({ alpha: 0 }, 1000, Phaser.Easing.Linear.None, true).onComplete.addOnce(() => {
@@ -68,6 +80,16 @@ module KGAD {
 
             this.offsetPosition = Phaser.Point.subtract(this.attachedTo.position, this.position).divide(2, 2);
             this.originalDirection = who.direction;
+        }
+
+        public hitWall() {
+            this.dead = true;
+            if (this._deadSpriteKey) {
+                this.loadTexture(this._deadSpriteKey, 0, false);
+                var angle = MovementHelper.getAngleFromDirection(this.direction);
+                var pos = new Phaser.Point(this.x + Math.cos(angle) * 3, this.y + Math.sin(angle) * 3);
+                this.position = pos;
+            }
         }
 
         update(): void {

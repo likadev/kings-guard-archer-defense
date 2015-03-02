@@ -45,8 +45,8 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    width: 600px;
-    height: 600px;
+    width: 640px;
+    height: 640px;
 }
 
 #header {
@@ -60,6 +60,29 @@ html, body {
 }
 
 #header a:visited {
+    color: mediumpurple;
+}
+
+#footer {
+    position: fixed;
+    bottom: 0;
+    text-align: center;
+    margin: auto;
+    width: 640px;
+}
+
+#messages {
+    position: absolute;
+    top: 75px;
+    left: 25px;
+}
+
+#messages a {
+    color: yellow;
+}
+
+
+#messages a:visited {
     color: mediumpurple;
 }
 

@@ -17,6 +17,8 @@ module KGAD {
 
         public static get PreGameLoading(): string { return 'PreGameLoading'; }
 
+        public static get SkillChallengeIntro(): string { return 'SkillChallengeIntro'; }
+
         public static get GameSimulation(): string { return 'GameSimulation'; }
 
         constructor() {
@@ -36,6 +38,7 @@ module KGAD {
             game.state.add(States.Boot, BootState, false);
             game.state.add(States.Boot, MainMenuState, false);
             game.state.add(States.PreGameLoading, PreGameLoadingState, false);
+            game.state.add(States.SkillChallengeIntro, SkillChallengeIntroState, false);
             game.state.add(States.GameSimulation, GameSimulationState, false);
         }
 
