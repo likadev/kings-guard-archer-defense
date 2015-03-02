@@ -201,7 +201,7 @@ module KGAD {
                     var enemy: Enemy = enemies.pop();
                     enemy.inflictDamage(9999999999, this.actors.hero);
 
-                    this.game.time.events.add(250, killEnemy, this);
+                    this.game.time.events.add(100, killEnemy, this);
                 }
                 else {
                     this.game.time.events.add(30000,() => {
@@ -215,7 +215,7 @@ module KGAD {
             this.skillChallengeTimer = null;
 
             var greatJobText = this.game.add.text(0, 0, 'GREAT JOB!!!', {
-                font: '24px MedievalSharpBook',
+                font: '48px MedievalSharpBook',
                 align: 'center',
                 fill: '#FFFFFF'
             });

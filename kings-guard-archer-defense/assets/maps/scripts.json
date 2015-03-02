@@ -1,5 +1,23 @@
 ﻿{
     "scripts": {
+        "skill_challenge": {
+            "waves": [
+                {
+                    "delay": 2000,
+                    "sequence": [
+                        {
+                            "addEnemyTypes": [
+                                {
+                                    "key": "enemy"
+                                }
+                            ],
+                            "every": 10000,
+                            "times":  20
+                        }
+                    ]
+                }
+            ]
+        },
         "level_1": {
             "waves": [
                 {
@@ -55,7 +73,7 @@
                             "removeEnemyTypes": [
                                 {
                                     "key": "enemy"
-                                } 
+                                }
                             ],
                             "addEnemyTypes": [ "boss" ],
                             "spawnPointName": "boss"

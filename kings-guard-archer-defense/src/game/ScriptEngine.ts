@@ -12,7 +12,7 @@ module KGAD {
         private _waveIndex: number;
         private _waveInProgress: boolean;
 
-        constructor(level: string) {
+        constructor(level?: string) {
             this.game = Game.Instance;
             this.map = Game.CurrentMap;
             this._level = level;
@@ -31,14 +31,21 @@ module KGAD {
         /**
          *  Preloads the script engine data.
          */
-        public preload() {
+        public preload(level?: string) {
+            this._level = level || this._level;
+
             this.game.load.json('scripts', 'assets/maps/scripts.json');
         }
 
         /**
          *  Creates the script engine data from the preloaded JSON script.
          */
-        public create() {
+        public create(level?: string) {
+            this._level = level || this._level;
+            if (!this._level) {
+                throw new Error("No level specified!");
+            }
+
             var json: any = this.game.cache.getJSON('scripts');
             if (!json.scripts) {
                 throw new Error("No 'scripts' element in JSON: " + JSON.stringify(json, null, 2));

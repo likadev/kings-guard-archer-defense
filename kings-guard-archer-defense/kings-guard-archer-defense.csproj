@@ -24,6 +24,8 @@
     <Content Include="assets\textures\characters\king.png" />
     <Content Include="assets\textures\characters\tank_merc.png" />
     <Content Include="assets\textures\misc\black.png" />
+    <Content Include="assets\textures\misc\play_button.png" />
+    <Content Include="assets\textures\misc\skill_challenge_button.png" />
     <Content Include="assets\textures\weapons\basic_arrow.png" />
     <Content Include="assets\textures\weapons\basic_arrow_dead.png" />
     <Content Include="assets\textures\weapons\charge.png" />

@@ -40,22 +40,197 @@ var KGAD;
         __extends(MainMenuState, _super);
         function MainMenuState() {
             _super.call(this);
+            this.buttonIndex = 0;
         }
+        MainMenuState.prototype.init = function (args) {
+            this.map = null;
+            this.script = null;
+            this.skillChallenge = false;
+            this.buttonIndex = 0;
+        };
         MainMenuState.prototype.preload = function () {
-            var firstLevel = "level_1";
-            this.map = new KGAD.GameMap(firstLevel);
-            this.script = new KGAD.ScriptEngine(firstLevel);
+            this.game.load.spritesheet('play_button', 'assets/textures/misc/play_button.png', 128, 64, 3);
+            this.game.load.spritesheet('skill_challenge_button', 'assets/textures/misc/skill_challenge_button.png', 128, 64, 3);
+            this.script = new KGAD.ScriptEngine();
             this.script.preload();
-            KGAD.Game.CurrentMap = this.map;
         };
         MainMenuState.prototype.create = function () {
-            this.script.create();
+            var _this = this;
+            this.centerX = this.centerX || this.game.world.centerX;
+            this.centerY = this.centerY || this.game.world.centerY;
+            this.containerWidth = this.containerWidth || this.game.world.width;
+            this.containerHeight = this.containerHeight || this.game.world.height;
+            var header = this.game.make.text(0, 0, "King's Guard: Archer Defense", {
+                font: "32px MedievalSharpBook",
+                fill: "#FFFFFF",
+                align: 'center'
+            });
+            header.x = this.centerX - (header.width / 2);
+            header.y = 0;
+            var subheader = this.game.make.text(0, 0, "(Pre-alpha)", {
+                font: "24px MedievalSharpBook",
+                fill: "#AAAAAA",
+                align: 'center'
+            });
+            subheader.x = this.centerX - (subheader.width / 2);
+            subheader.y = header.height + 2;
+            var footer = this.game.make.text(0, 0, "Tip: Hold down the 'fire' button to charge your weapon.", {
+                font: "16px MedievalSharpBook",
+                fill: "#FFFFFF",
+                align: 'center'
+            });
+            footer.x = this.centerX - (footer.width / 2);
+            footer.y = this.containerHeight - footer.height * 2;
+            var subfooter = this.game.make.text(0, 0, "(Z, Y, Space, or XBox 360 'A' button)", {
+                font: "16px MedievalSharpBook",
+                fill: "#AAAAAA",
+                align: 'center'
+            });
+            subfooter.x = this.centerX - (subfooter.width / 2);
+            subfooter.y = this.containerHeight - footer.height;
+            this.game.world.add(header);
+            this.game.world.add(subheader);
+            this.game.world.add(footer);
+            this.game.world.add(subfooter);
+            var buttonWidth = 128;
+            var buttonHeight = 64;
+            var spacing = 16;
+            var playButtonPosition = {
+                x: this.centerX - (buttonWidth / 2),
+                y: this.centerY - (buttonHeight / 2) - buttonHeight
+            };
+            var skillChallengeButton = {
+                x: this.centerX - (buttonWidth / 2),
+                y: this.centerY - (buttonHeight / 2) + spacing
+            };
+            this.playButton = this.game.add.button(playButtonPosition.x, playButtonPosition.y, 'play_button');
+            this.skillChallengeButton = this.game.add.button(skillChallengeButton.x, skillChallengeButton.y, 'skill_challenge_button');
+            this.playButton.onInputOver.add(this.hover, this);
+            this.playButton.onInputOut.add(this.blur, this);
+            this.playButton.onInputDown.add(this.down, this);
+            this.playButton.onInputUp.add(this.up, this);
+            this.skillChallengeButton.onInputOver.add(this.hover, this);
+            this.skillChallengeButton.onInputOut.add(this.blur, this);
+            this.skillChallengeButton.onInputDown.add(this.down, this);
+            this.skillChallengeButton.onInputUp.add(this.up, this);
+            this.game.input.gamepad.start();
+            this.cursors = this.game.input.keyboard.createCursorKeys();
+            var okKeys = [
+                this.game.input.keyboard.addKey(Phaser.Keyboard.Z),
+                this.game.input.keyboard.addKey(Phaser.Keyboard.Y),
+                this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR),
+                this.game.input.keyboard.addKey(Phaser.Keyboard.ENTER),
+            ];
+            for (var i = 0, l = okKeys.length; i < l; ++i) {
+                okKeys[i].onDown.add(function () {
+                    if (_this.buttonIndex !== -1) {
+                        _this.down(_this.buttonIndex === 0 ? _this.playButton : _this.skillChallengeButton);
+                    }
+                }, this);
+                okKeys[i].onUp.add(function () {
+                    if (_this.buttonIndex !== -1) {
+                        _this.up(_this.buttonIndex === 0 ? _this.playButton : _this.skillChallengeButton);
+                    }
+                    else {
+                        _this.processButtonIndex();
+                    }
+                }, this);
+            }
+            this.playButton.frame = 1;
         };
         MainMenuState.prototype.update = function () {
-            if (this.map.ready) {
+            if (this.map && this.map.ready) {
                 var states = KGAD.States.Instance;
-                states.switchTo(KGAD.States.PreGameLoading, true, false, this.map, this.script);
+                states.switchTo(KGAD.States.PreGameLoading, true, false, this.map, this.script, this.skillChallenge);
+                return;
             }
+            if (this.cursors.up.justDown || this.input.gamepad.justPressed(Phaser.Gamepad.XBOX360_DPAD_UP)) {
+                this.decrementButtonIndex();
+            }
+            else if (this.cursors.down.justDown || this.input.gamepad.justPressed(Phaser.Gamepad.XBOX360_DPAD_DOWN)) {
+                this.incrementButtonIndex();
+            }
+            if (this.input.gamepad.justReleased(Phaser.Gamepad.XBOX360_A)) {
+                if (this.buttonIndex !== -1) {
+                    this.up(this.buttonIndex === 0 ? this.playButton : this.skillChallengeButton);
+                }
+                else {
+                    this.processButtonIndex();
+                }
+            }
+            else if (this.input.gamepad.justPressed(Phaser.Gamepad.XBOX360_A)) {
+                if (this.buttonIndex !== -1) {
+                    this.down(this.buttonIndex === 0 ? this.playButton : this.skillChallengeButton);
+                }
+            }
+        };
+        MainMenuState.prototype.incrementButtonIndex = function () {
+            ++this.buttonIndex;
+            this.processButtonIndex();
+        };
+        MainMenuState.prototype.decrementButtonIndex = function () {
+            --this.buttonIndex;
+            this.processButtonIndex();
+        };
+        MainMenuState.prototype.processButtonIndex = function () {
+            if (this.buttonIndex < 0) {
+                this.buttonIndex = 0;
+            }
+            if (this.buttonIndex > 1) {
+                this.buttonIndex = 1;
+            }
+            if (this.buttonIndex === 0) {
+                this.hover(this.playButton, false);
+            }
+            else if (this.buttonIndex === 1) {
+                this.hover(this.skillChallengeButton, false);
+            }
+        };
+        MainMenuState.prototype.hover = function (button, suppressButtonIndex) {
+            if (suppressButtonIndex === void 0) { suppressButtonIndex = true; }
+            button.frame = 1;
+            if (button === this.skillChallengeButton) {
+                this.playButton.frame = 0;
+            }
+            else {
+                this.skillChallengeButton.frame = 0;
+            }
+            if (suppressButtonIndex) {
+                this.buttonIndex = -1;
+            }
+        };
+        MainMenuState.prototype.blur = function (button, suppressButtonIndex) {
+            if (suppressButtonIndex === void 0) { suppressButtonIndex = true; }
+            button.frame = 0;
+            if (suppressButtonIndex) {
+                this.buttonIndex = -1;
+            }
+        };
+        MainMenuState.prototype.down = function (button) {
+            button.frame = 2;
+        };
+        MainMenuState.prototype.up = function (button) {
+            button.frame = 1;
+            if (button === this.skillChallengeButton) {
+                this.startSkillChallenge();
+            }
+            else {
+                this.startRegularGame();
+            }
+        };
+        MainMenuState.prototype.startRegularGame = function () {
+            this.skillChallenge = false;
+            var firstLevel = "level_1";
+            this.map = new KGAD.GameMap(firstLevel);
+            KGAD.Game.CurrentMap = this.map;
+            this.script.create(firstLevel);
+        };
+        MainMenuState.prototype.startSkillChallenge = function () {
+            this.skillChallenge = true;
+            var firstLevel = "skill_challenge";
+            this.map = new KGAD.GameMap(firstLevel);
+            KGAD.Game.CurrentMap = this.map;
+            this.script.create(firstLevel);
         };
         return MainMenuState;
     })(Phaser.State);
@@ -73,6 +248,7 @@ var KGAD;
         PreGameLoadingState.prototype.init = function (args) {
             this.map = args[0];
             this.script = args[1];
+            this.skillChallengeMode = !!args[2];
         };
         PreGameLoadingState.prototype.preload = function () {
             var _this = this;
@@ -118,8 +294,7 @@ var KGAD;
         PreGameLoadingState.prototype.update = function () {
             var states = KGAD.States.Instance;
             if (KGAD.AnimationLoader.done && this.ready) {
-                var skillChallenge = true;
-                var nextState = skillChallenge ? KGAD.States.SkillChallengeIntro : KGAD.States.GameSimulation;
+                var nextState = this.skillChallengeMode ? KGAD.States.SkillChallengeIntro : KGAD.States.GameSimulation;
                 states.switchTo(nextState, true, false, this.map, this.script);
             }
         };
@@ -283,7 +458,7 @@ var KGAD;
                 if (enemies.length > 0) {
                     var enemy = enemies.pop();
                     enemy.inflictDamage(9999999999, _this.actors.hero);
-                    _this.game.time.events.add(250, killEnemy, _this);
+                    _this.game.time.events.add(100, killEnemy, _this);
                 }
                 else {
                     _this.game.time.events.add(30000, function () {
@@ -295,7 +470,7 @@ var KGAD;
             this.skillChallengeTimer.destroy();
             this.skillChallengeTimer = null;
             var greatJobText = this.game.add.text(0, 0, 'GREAT JOB!!!', {
-                font: '24px MedievalSharpBook',
+                font: '48px MedievalSharpBook',
                 align: 'center',
                 fill: '#FFFFFF'
             });
@@ -2568,7 +2743,7 @@ var KGAD;
         }
         Object.defineProperty(King.prototype, "weight", {
             get: function () {
-                return 1;
+                return 50;
             },
             enumerable: true,
             configurable: true
@@ -2867,13 +3042,18 @@ var KGAD;
         /**
          *  Preloads the script engine data.
          */
-        ScriptEngine.prototype.preload = function () {
+        ScriptEngine.prototype.preload = function (level) {
+            this._level = level || this._level;
             this.game.load.json('scripts', 'assets/maps/scripts.json');
         };
         /**
          *  Creates the script engine data from the preloaded JSON script.
          */
-        ScriptEngine.prototype.create = function () {
+        ScriptEngine.prototype.create = function (level) {
+            this._level = level || this._level;
+            if (!this._level) {
+                throw new Error("No level specified!");
+            }
             var json = this.game.cache.getJSON('scripts');
             if (!json.scripts) {
                 throw new Error("No 'scripts' element in JSON: " + JSON.stringify(json, null, 2));

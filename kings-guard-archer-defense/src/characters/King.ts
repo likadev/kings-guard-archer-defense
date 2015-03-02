@@ -13,7 +13,7 @@ module KGAD {
         }
 
         public get weight(): number {
-            return 1;
+            return 50;
         }
     }
 }

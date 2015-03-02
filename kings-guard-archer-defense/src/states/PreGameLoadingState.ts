@@ -8,6 +8,7 @@ module KGAD {
         private ready: boolean;
         private sprites: {};
         private chargeSprite: AnimatedSprite;
+        private skillChallengeMode: boolean;
 
         constructor() {
             super();
@@ -16,6 +17,7 @@ module KGAD {
         init(args: Array<any>): void {
             this.map = args[0];
             this.script = args[1];
+            this.skillChallengeMode = !!args[2];
         }
 
         preload(): void {
@@ -74,8 +76,7 @@ module KGAD {
         update(): void {
             var states = States.Instance;
             if (AnimationLoader.done && this.ready) {
-                var skillChallenge = true;
-                var nextState = skillChallenge ? States.SkillChallengeIntro : States.GameSimulation;
+                var nextState = this.skillChallengeMode ? States.SkillChallengeIntro : States.GameSimulation;
 
                 states.switchTo(nextState, true, false, this.map, this.script);
             }
