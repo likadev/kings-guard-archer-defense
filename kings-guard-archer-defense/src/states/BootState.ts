@@ -8,7 +8,12 @@ module KGAD {
         }
 
         preload(): void {
-            
+            this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+            this.scale.minWidth = 640;
+            this.scale.minHeight = 640;
+            this.scale.maxWidth = 1024;
+            this.scale.maxHeight = 1024;
+            (<any>this.scale).setScreenSize();
         }
 
         create(): void {

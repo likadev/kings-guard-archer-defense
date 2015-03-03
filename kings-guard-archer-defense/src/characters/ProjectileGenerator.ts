@@ -7,6 +7,8 @@ module KGAD {
         private activeProjectiles: Array<FiredProjectile>;
         private inactiveProjectiles: Array<FiredProjectile>;
         private groups: { [key: string]: Phaser.Group };
+        private debugLastRay: Phaser.Line;
+        private debugFirstTile: Phaser.Rectangle;
 
         constructor() {
             this.activeProjectiles = [];
@@ -108,26 +110,49 @@ module KGAD {
          */
         public fire(x: number, y: number, who: AnimatedSprite, weapon: Weapon, chargePower: number, onKill?: () => any): void {
             var game = Game.Instance;
+            var map = Game.CurrentMap;
             var direction = who.direction;
             var p: Phaser.Point = MovementHelper.getPointFromDirection(direction);
             var projectileStartPosition = Phaser.Point.add(who.position, p);
             var group = this.getGroupByType(weapon.key);
+            var rotation = MovementHelper.getAngleFromDirection(direction);
 
             var sprite: FiredProjectile = group.create(x, y, weapon.key);
             if (weapon.deadProjectileKey) {
                 sprite.deadSpriteKey = weapon.deadProjectileKey;
             }
-            sprite.rotation = Phaser.Point.angle(MovementHelper.getPointFromDirection(direction), new Phaser.Point());
+            sprite.lifespan = weapon.aliveTime;
+            sprite.rotation = rotation;
+            sprite.direction = direction;
+            sprite.renderPriority = -1;
+
             sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
             sprite.body.width = sprite.body.width - 1;
             sprite.body.height = sprite.body.height - 1;
-
             game.physics.arcade.velocityFromAngle(sprite.angle, sprite.speed, sprite.body.velocity);
 
-            setTimeout(() => {
-                this.killProjectile(sprite);
-            }, weapon.aliveTime);
+            var distX = sprite.body.velocity.x * (weapon.aliveTime / 1000);
+            var distY = sprite.body.velocity.y * (weapon.aliveTime / 1000);
+
+            var ray = new Phaser.Line(sprite.x, sprite.y, sprite.x + distX, sprite.y + distY);
+            ray.end.x = Phaser.Math.clamp(ray.end.x, 0, map.widthInPixels);
+            ray.end.y = Phaser.Math.clamp(ray.end.y, 0, map.heightInPixels);
+
+            var pixelPoint: Phaser.Point = new Phaser.Point();
+            var tile = CollisionHelper.raycastFirstTile(ray, 4, pixelPoint);
+            var aliveTime = weapon.aliveTime;
+            
+            if (tile) {
+                aliveTime = (Phaser.Point.distance(sprite.position, pixelPoint) / sprite.speed) * 1000;
+                sprite.hitWallPoint = pixelPoint;
+            }
+
+            sprite.aliveTime = aliveTime;
+
+            game.time.events.add(aliveTime,() => {
+                this.makeInactive(sprite);
+            }, this);
 
             this.activeProjectiles.push(sprite);
         }
@@ -136,17 +161,24 @@ module KGAD {
             var game = Game.Instance;
 
             game.physics.arcade.collide(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => { this.onProjectileHitWall(proj); });
-            game.physics.arcade.overlap(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => {
+            /*game.physics.arcade.overlap(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => {
                 this.onProjectileHitWall(proj);
-            });
+            });*/
 
-            for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
+            /*for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
                 this.activeProjectiles[i].update();
             }
 
             for (i = 0, l = this.inactiveProjectiles.length; i < l; ++i) {
                 this.inactiveProjectiles[i].update();
-            }
+            }*/
+        }
+
+        render(): void {
+            /*if (this.debugLastRay) {
+                Game.Instance.debug.geom(this.debugLastRay);
+                Game.Instance.debug.geom(this.debugFirstTile, '#FF9999', true);
+            }*/
         }
 
         private onProjectileHitWall(proj: FiredProjectile) {

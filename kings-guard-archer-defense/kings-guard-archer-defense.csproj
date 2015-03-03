@@ -78,6 +78,7 @@
     <TypeScriptCompile Include="src\sprites\conversion\EnemySpecification.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\SpriteDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\WeaponSpecification.ts" />
+    <TypeScriptCompile Include="src\sprites\HealthBar.ts" />
     <TypeScriptCompile Include="src\sprites\helpers\CollisionHelper.ts" />
     <TypeScriptCompile Include="src\sprites\helpers\PathMovementMachine.ts" />
     <TypeScriptCompile Include="src\states\BootState.ts" />
@@ -92,6 +93,7 @@
     <TypeScriptCompile Include="src\tilemap\Path.ts" />
     <TypeScriptCompile Include="src\tilemap\Pathfinding.ts" />
     <TypeScriptCompile Include="src\util\Arrays.ts" />
+    <TypeScriptCompile Include="src\util\Text.ts" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="js\phaser.map" />

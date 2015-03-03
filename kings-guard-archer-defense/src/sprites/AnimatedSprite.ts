@@ -10,7 +10,7 @@ module KGAD {
         public direction: Directions;
         public node: Phaser.Point;
         public movementSpeed: number;
-        private added: boolean;
+        public renderPriority: number;
         protected lastPosition: Phaser.Point;
         protected lastNode: Phaser.Point;
         protected canOccupy: boolean;
@@ -20,6 +20,9 @@ module KGAD {
         protected pathFindingMover: PathMovementMachine;
         protected sequentialBlocks: number;
         protected _moving: boolean;
+        private added: boolean;
+        private _hasHealthBar: boolean;
+        private healthBar: HealthBar;
 
         public blocked: Phaser.Signal;
         public movementTweenCompleted: Phaser.Signal;
@@ -28,7 +31,7 @@ module KGAD {
             super(game, x, y, key, frame);
 
             this.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
-            this.texture.baseTexture.mipmap = true;
+            //this.texture.baseTexture.mipmap = true;
 
             this.anchor.setTo(0.5);
             this.action = Actions.Standing;
@@ -44,6 +47,7 @@ module KGAD {
             this.pathFindingMover = new PathMovementMachine(this);
             this.movementSpeed = 100;
             this.fixedToCamera = false;
+            this.renderPriority = 0;
         }
 
         init(...args: any[]): void {
@@ -52,6 +56,27 @@ module KGAD {
             this.body.bounce.setTo(0.0);
             this.body.collideWorldBounds = true;
             this.body.immovable = true;
+
+            this.healthBar = new HealthBar(this.game, this);
+            this.healthBar.init(this.health);
+            this.healthBar.visible = false;
+        }
+
+        public get hasHealthBar(): boolean {
+            return this._hasHealthBar;
+        }
+
+        public set hasHealthBar(_hasHealthBar: boolean) {
+            var addHealthBar = !this._hasHealthBar && this._hasHealthBar !== _hasHealthBar;
+            var removeHealthBar = this._hasHealthBar && this._hasHealthBar !== _hasHealthBar;
+            this._hasHealthBar = _hasHealthBar;
+
+            if (addHealthBar) {
+                this.healthBar.visible = true;
+            }
+            else if (removeHealthBar) {
+                this.healthBar.visible = false;
+            }
         }
 
         public get canOccupyTiles(): boolean {
@@ -168,6 +193,8 @@ module KGAD {
 
             if (this.health <= 0) {
                 OccupiedGrid.remove(this);
+
+                this.healthBar.destroy();
 
                 this.showDeathAnimation();
             }
@@ -376,6 +403,8 @@ module KGAD {
          */
         update(): void {
             super.update();
+
+            this.healthBar.update();
         }
 
         render(): void {

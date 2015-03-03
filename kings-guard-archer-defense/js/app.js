@@ -17,6 +17,12 @@ var KGAD;
             this.add.plugin(Phaser.Plugin.Tiled);
         };
         BootState.prototype.preload = function () {
+            this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+            this.scale.minWidth = 640;
+            this.scale.minHeight = 640;
+            this.scale.maxWidth = 1024;
+            this.scale.maxHeight = 1024;
+            this.scale.setScreenSize();
         };
         BootState.prototype.create = function () {
             this.input.maxPointers = 1;
@@ -60,38 +66,48 @@ var KGAD;
             this.centerY = this.centerY || this.game.world.centerY;
             this.containerWidth = this.containerWidth || this.game.world.width;
             this.containerHeight = this.containerHeight || this.game.world.height;
-            var header = this.game.make.text(0, 0, "King's Guard: Archer Defense", {
-                font: "32px MedievalSharpBook",
-                fill: "#FFFFFF",
-                align: 'center'
+            var header = KGAD.Text.createText("King's Guard: Archer Defense", {
+                centeredX: true,
+                style: {
+                    font: "32px MedievalSharpBook",
+                    align: "center"
+                },
+                addToWorld: true,
+                fixedToCamera: true
             });
-            header.x = this.centerX - (header.width / 2);
-            header.y = 0;
-            var subheader = this.game.make.text(0, 0, "(Pre-alpha)", {
-                font: "24px MedievalSharpBook",
-                fill: "#AAAAAA",
-                align: 'center'
+            KGAD.Text.createText("(Pre-alpha)", {
+                centeredX: true,
+                y: header.height + 2,
+                style: {
+                    font: "24px MedievalSharpBook",
+                    fill: "#AAAAAA",
+                    align: "center"
+                },
+                addToWorld: true,
+                fixedToCamera: true
             });
-            subheader.x = this.centerX - (subheader.width / 2);
-            subheader.y = header.height + 2;
-            var footer = this.game.make.text(0, 0, "Tip: Hold down the 'fire' button to charge your weapon.", {
-                font: "16px MedievalSharpBook",
-                fill: "#FFFFFF",
-                align: 'center'
+            var footerHeight = KGAD.Text.measureText("Tip: Hold down the 'fire' button to charge your weapon.", 16).height;
+            KGAD.Text.createText("Tip: Hold down the 'fire' button to charge your weapon.", {
+                style: {
+                    font: "16px MedievalSharpBook",
+                    align: "center"
+                },
+                centeredX: true,
+                y: this.containerHeight - footerHeight * 2,
+                addToWorld: true,
+                fixedToCamera: true
             });
-            footer.x = this.centerX - (footer.width / 2);
-            footer.y = this.containerHeight - footer.height * 2;
-            var subfooter = this.game.make.text(0, 0, "(Z, Y, Space, or XBox 360 'A' button)", {
-                font: "16px MedievalSharpBook",
-                fill: "#AAAAAA",
-                align: 'center'
+            KGAD.Text.createText("(Z, Y, Space, or XBox 360 'A' button)", {
+                style: {
+                    font: "16px MedievalSharpBook",
+                    fill: "#AAAAAA",
+                    align: "center"
+                },
+                y: this.containerHeight - footerHeight,
+                centeredX: true,
+                addToWorld: true,
+                fixedToCamera: true,
             });
-            subfooter.x = this.centerX - (subfooter.width / 2);
-            subfooter.y = this.containerHeight - footer.height;
-            this.game.world.add(header);
-            this.game.world.add(subheader);
-            this.game.world.add(footer);
-            this.game.world.add(subfooter);
             var buttonWidth = 128;
             var buttonHeight = 64;
             var spacing = 16;
@@ -288,6 +304,8 @@ var KGAD;
             this.game.load.image('basic_arrow', 'assets/textures/weapons/basic_arrow.png');
             this.game.load.image('basic_arrow_dead', 'assets/textures/weapons/basic_arrow_dead.png');
             this.game.load.image('black', 'assets/textures/misc/black.png');
+            this.game.load.image('healthbar', 'assets/textures/misc/healthbar.png');
+            this.game.load.image('healthbar_frame', 'assets/textures/misc/healthbar_frame.png');
         };
         PreGameLoadingState.prototype.create = function () {
         };
@@ -375,24 +393,13 @@ var KGAD;
                 this.skillChallengeTimer.fixedToCamera = true;
             }
         };
-        GameSimulationState.prototype.preUpdate = function () {
-            //this.hero.preUpdate();
-        };
         GameSimulationState.prototype.update = function () {
-            /*if (this.input.keyboard.isDown(Phaser.Keyboard.TILDE)) {
-                if (this.actors.king.alive) {
-                    this.actors.king.kill();
-                }
-            }
-            else if (this.input.keyboard.isDown(Phaser.Keyboard.ONE)) {
-                this.showVictoryAnimation();
-            }*/
             var _this = this;
             var projectiles = this.projectiles;
             projectiles.update();
             var physics = this.game.physics.arcade;
             var actors = this.actors;
-            physics.overlap(projectiles.getActiveProjectiles(), this.actors.enemies, function (first, second) {
+            physics.collide(projectiles.getActiveProjectiles(), this.actors.enemies, function (first, second) {
                 _this.handleProjectileCollision(first, second);
             });
             if (this.game.input.activePointer.isDown) {
@@ -442,6 +449,9 @@ var KGAD;
         };
         GameSimulationState.prototype.render = function () {
             if (!this.done) {
+                /*this.actors.render();
+                OccupiedGrid.render();*/
+                this.projectiles.render();
             }
         };
         GameSimulationState.prototype.showVictoryAnimation = function () {
@@ -463,7 +473,7 @@ var KGAD;
                 else {
                     _this.game.time.events.add(30000, function () {
                         _this.actors.destroy(true);
-                        _this.game.state.start(KGAD.States.Boot, true, true);
+                        _this.game.state.start(KGAD.States.Boot, true, false);
                     }, _this);
                 }
             };
@@ -498,6 +508,7 @@ var KGAD;
                 var tween = _this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
                 tween.start();
                 var fadeSprite = _this.game.make.sprite(0, 0, 'black');
+                fadeSprite.renderPriority = 9999;
                 fadeSprite.width = _this.camera.view.width;
                 fadeSprite.height = _this.camera.view.height;
                 fadeSprite.fixedToCamera = true;
@@ -545,10 +556,31 @@ var KGAD;
                         var child2 = children[j];
                         if (child2 instanceof Phaser.Sprite) {
                             var y2 = child2.y;
-                            if (y2 < y1) {
+                            var renderPriority1 = child1.renderPriority || 0;
+                            var renderPriority2 = child2.renderPriority || 0;
+                            if (renderPriority2 < renderPriority1) {
                                 children[i] = child2;
                                 children[j] = child1;
                                 break;
+                            }
+                            if (renderPriority1 === renderPriority2) {
+                                /*if (child2.key === 'black') {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }
+
+                                if ((child1.key === 'healthbar' || child1.key === 'healthbar_frame') &&
+                                    child2.key !== 'healthbar' && child2.key !== 'healthbar_frame') {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }*/
+                                if (y2 < y1) {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -679,8 +711,6 @@ var KGAD;
             var renderer = isFirefox ? Phaser.CANVAS : Phaser.AUTO;
             _super.call(this, width, height, renderer, container);
             Game.instance = this;
-            Game._onBlur = new Phaser.Signal();
-            Game._onFocus = new Phaser.Signal();
             if (!isChrome) {
                 $('#messages').append($('<div>').html('For the best experience, please use <a href="https://www.google.com/chrome/browser/">Google Chrome</a>.'));
             }
@@ -729,6 +759,26 @@ var KGAD;
              */
             set: function (simulation) {
                 this.simulation = simulation;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Game, "Width", {
+            /**
+             *  Gets the width of the container area.
+             */
+            get: function () {
+                return $('#container').innerWidth();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Game, "Height", {
+            /**
+             *  Gets the height of the container area.
+             */
+            get: function () {
+                return $('#container').innerHeight();
             },
             enumerable: true,
             configurable: true
@@ -793,20 +843,6 @@ var KGAD;
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Game, "onBlur", {
-            get: function () {
-                return this._onBlur;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Game, "onFocus", {
-            get: function () {
-                return this._onFocus;
-            },
-            enumerable: true,
-            configurable: true
-        });
         Game.instance = null;
         Game.currentMap = null;
         Game.actors = null;
@@ -861,7 +897,10 @@ window.onload = function () {
                 onchange({ type: document[hidden] ? "blur" : "focus" });
         })();
         $('#content').html('');
-        game = new KGAD.Game(640, 640, 'content');
+        var width = $('#container').innerWidth();
+        var height = $('#container').innerHeight();
+        console.log('game size: ' + width + 'x' + height);
+        game = new KGAD.Game(width, height, 'content');
     }
     finally {
     }
@@ -1344,7 +1383,7 @@ var KGAD;
             _super.call(this, game, x, y, key, frame);
             this.default_animation = 'face_down';
             this.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
-            this.texture.baseTexture.mipmap = true;
+            //this.texture.baseTexture.mipmap = true;
             this.anchor.setTo(0.5);
             this.action = KGAD.Actions.Standing;
             this.direction = 2 /* Down */;
@@ -1357,6 +1396,7 @@ var KGAD;
             this.pathFindingMover = new KGAD.PathMovementMachine(this);
             this.movementSpeed = 100;
             this.fixedToCamera = false;
+            this.renderPriority = 0;
         }
         AnimatedSprite.prototype.init = function () {
             var args = [];
@@ -1367,7 +1407,28 @@ var KGAD;
             this.body.bounce.setTo(0.0);
             this.body.collideWorldBounds = true;
             this.body.immovable = true;
+            this.healthBar = new KGAD.HealthBar(this.game, this);
+            this.healthBar.init(this.health);
+            this.healthBar.visible = false;
         };
+        Object.defineProperty(AnimatedSprite.prototype, "hasHealthBar", {
+            get: function () {
+                return this._hasHealthBar;
+            },
+            set: function (_hasHealthBar) {
+                var addHealthBar = !this._hasHealthBar && this._hasHealthBar !== _hasHealthBar;
+                var removeHealthBar = this._hasHealthBar && this._hasHealthBar !== _hasHealthBar;
+                this._hasHealthBar = _hasHealthBar;
+                if (addHealthBar) {
+                    this.healthBar.visible = true;
+                }
+                else if (removeHealthBar) {
+                    this.healthBar.visible = false;
+                }
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(AnimatedSprite.prototype, "canOccupyTiles", {
             get: function () {
                 return this.canOccupy;
@@ -1481,6 +1542,7 @@ var KGAD;
             this.damageTween.start();
             if (this.health <= 0) {
                 KGAD.OccupiedGrid.remove(this);
+                this.healthBar.destroy();
                 this.showDeathAnimation();
             }
             return this;
@@ -1649,6 +1711,7 @@ var KGAD;
          */
         AnimatedSprite.prototype.update = function () {
             _super.prototype.update.call(this);
+            this.healthBar.update();
         };
         AnimatedSprite.prototype.render = function () {
         };
@@ -1847,6 +1910,7 @@ var KGAD;
                 args[_i - 0] = arguments[_i];
             }
             _super.prototype.init.call(this, args);
+            this.hasHealthBar = true;
             this.body.immovable = true;
             this.weapon = new KGAD.Weapon(this.game, 'short_sword', {
                 cooldown: 1500,
@@ -2112,12 +2176,13 @@ var KGAD;
                 this.chargePower = 0;
             }
             this.weapon.lastFireTime = this.game.time.now;
-            this.direction = KGAD.MovementHelper.getDirectionFromAngle(this.rotation);
+            //this.direction = MovementHelper.getDirectionFromAngle(this.rotation);
             if (this.direction == 0 /* Up */ || this.direction == 2 /* Down */) {
                 var h = this.body.width;
                 this.body.width = this.body.height;
                 this.body.height = h;
             }
+            this.aliveTime = this.lifespan;
         };
         Object.defineProperty(FiredProjectile.prototype, "deadSpriteKey", {
             get: function () {
@@ -2152,6 +2217,7 @@ var KGAD;
         });
         FiredProjectile.prototype.attachTo = function (who) {
             var _this = this;
+            this.wallWasHit = true;
             this.attachedTo = who;
             this.dead = true;
             if (this._deadSpriteKey) {
@@ -2166,15 +2232,20 @@ var KGAD;
             this.originalDirection = who.direction;
         };
         FiredProjectile.prototype.hitWall = function () {
+            this.wallWasHit = true;
             this.dead = true;
             if (this._deadSpriteKey) {
-                this.loadTexture(this._deadSpriteKey, 0, false);
-                var angle = KGAD.MovementHelper.getAngleFromDirection(this.direction);
-                var pos = new Phaser.Point(this.x + Math.cos(angle) * 3, this.y + Math.sin(angle) * 3);
-                this.position = pos;
+                this.createDeadProjectile();
             }
+            this.kill();
         };
         FiredProjectile.prototype.update = function () {
+            if (!this.dead && this.aliveTime > 0) {
+                this.aliveTime -= this.game.time.physicsElapsedMS;
+                if (this.aliveTime <= 0) {
+                    this.hitWall();
+                }
+            }
             if (this.attachedTo != null) {
                 this.position = Phaser.Point.subtract(this.attachedTo.position, this.offsetPosition);
                 if (this.attachedTo.direction != this.originalDirection) {
@@ -2183,6 +2254,25 @@ var KGAD;
                     this.alpha = Math.min(this.alpha, this.attachedTo.alpha);
                 }
             }
+        };
+        FiredProjectile.prototype.createDeadProjectile = function () {
+            var _this = this;
+            if (!this.deadSpriteKey) {
+                return;
+            }
+            var pos = new Phaser.Point(this.x + Math.cos(angle) * 3, this.y + Math.sin(angle) * 3);
+            if (this.hitWallPoint && this.wallWasHit) {
+                pos = this.hitWallPoint;
+            }
+            var sprite = this.game.add.sprite(pos.x, pos.y, this.deadSpriteKey);
+            sprite.renderPriorty = this.renderPriority - 1;
+            sprite.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
+            var angle = KGAD.MovementHelper.getAngleFromDirection(this.direction);
+            sprite.rotation = angle;
+            sprite.anchor.set(1, 0.5);
+            this.game.time.events.add(this.weapon.aliveTime, function () {
+                _this.game.add.tween(sprite).to({ alpha: 0 }, 500, Phaser.Easing.Linear.None, true);
+            }, this);
         };
         return FiredProjectile;
     })(KGAD.AnimatedSprite);
@@ -2198,6 +2288,7 @@ var KGAD;
         __extends(Hero, _super);
         function Hero(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
+            this.health = 5;
         }
         Hero.prototype.addGamepadButtons = function () {
             var gamepad = this.game.input.gamepad;
@@ -2300,6 +2391,7 @@ var KGAD;
                 args[_i - 0] = arguments[_i];
             }
             _super.prototype.init.call(this, args);
+            this.hasHealthBar = true;
             this.keys = {};
             this.movementKeyState = {
                 up: false,
@@ -2741,9 +2833,17 @@ var KGAD;
             _super.call(this, game, x, y, key, frame);
             this.health = 35;
         }
+        King.prototype.init = function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                args[_i - 0] = arguments[_i];
+            }
+            _super.prototype.init.call(this, args);
+            this.hasHealthBar = true;
+        };
         Object.defineProperty(King.prototype, "weight", {
             get: function () {
-                return 50;
+                return 4;
             },
             enumerable: true,
             configurable: true
@@ -2772,6 +2872,8 @@ var KGAD;
             for (var _i = 0; _i < arguments.length; _i++) {
                 args[_i - 0] = arguments[_i];
             }
+            _super.prototype.init.call(this, args);
+            this.hasHealthBar = true;
             this.weapon = new KGAD.Weapon(this.game, 'short_sword', {
                 cooldown: 1500,
                 range: 33,
@@ -2846,6 +2948,7 @@ var KGAD;
             return this;
         };
         Mercenary.prototype.update = function () {
+            _super.prototype.update.call(this);
             var dead = !this.alive || !this.exists || this.health <= 0;
             if (dead || this.weapon.isBackSwinging()) {
                 return;
@@ -2971,23 +3074,41 @@ var KGAD;
         ProjectileManager.prototype.fire = function (x, y, who, weapon, chargePower, onKill) {
             var _this = this;
             var game = KGAD.Game.Instance;
+            var map = KGAD.Game.CurrentMap;
             var direction = who.direction;
             var p = KGAD.MovementHelper.getPointFromDirection(direction);
             var projectileStartPosition = Phaser.Point.add(who.position, p);
             var group = this.getGroupByType(weapon.key);
+            var rotation = KGAD.MovementHelper.getAngleFromDirection(direction);
             var sprite = group.create(x, y, weapon.key);
             if (weapon.deadProjectileKey) {
                 sprite.deadSpriteKey = weapon.deadProjectileKey;
             }
-            sprite.rotation = Phaser.Point.angle(KGAD.MovementHelper.getPointFromDirection(direction), new Phaser.Point());
+            sprite.lifespan = weapon.aliveTime;
+            sprite.rotation = rotation;
+            sprite.direction = direction;
+            sprite.renderPriority = -1;
             sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
             sprite.body.width = sprite.body.width - 1;
             sprite.body.height = sprite.body.height - 1;
             game.physics.arcade.velocityFromAngle(sprite.angle, sprite.speed, sprite.body.velocity);
-            setTimeout(function () {
-                _this.killProjectile(sprite);
-            }, weapon.aliveTime);
+            var distX = sprite.body.velocity.x * (weapon.aliveTime / 1000);
+            var distY = sprite.body.velocity.y * (weapon.aliveTime / 1000);
+            var ray = new Phaser.Line(sprite.x, sprite.y, sprite.x + distX, sprite.y + distY);
+            ray.end.x = Phaser.Math.clamp(ray.end.x, 0, map.widthInPixels);
+            ray.end.y = Phaser.Math.clamp(ray.end.y, 0, map.heightInPixels);
+            var pixelPoint = new Phaser.Point();
+            var tile = KGAD.CollisionHelper.raycastFirstTile(ray, 4, pixelPoint);
+            var aliveTime = weapon.aliveTime;
+            if (tile) {
+                aliveTime = (Phaser.Point.distance(sprite.position, pixelPoint) / sprite.speed) * 1000;
+                sprite.hitWallPoint = pixelPoint;
+            }
+            sprite.aliveTime = aliveTime;
+            game.time.events.add(aliveTime, function () {
+                _this.makeInactive(sprite);
+            }, this);
             this.activeProjectiles.push(sprite);
         };
         ProjectileManager.prototype.update = function () {
@@ -2996,15 +3117,22 @@ var KGAD;
             game.physics.arcade.collide(this.activeProjectiles, KGAD.Game.CurrentMap.collisionLayer, function (proj) {
                 _this.onProjectileHitWall(proj);
             });
-            game.physics.arcade.overlap(this.activeProjectiles, KGAD.Game.CurrentMap.collisionLayer, function (proj) {
-                _this.onProjectileHitWall(proj);
-            });
-            for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
+            /*game.physics.arcade.overlap(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => {
+                this.onProjectileHitWall(proj);
+            });*/
+            /*for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
                 this.activeProjectiles[i].update();
             }
+
             for (i = 0, l = this.inactiveProjectiles.length; i < l; ++i) {
                 this.inactiveProjectiles[i].update();
-            }
+            }*/
+        };
+        ProjectileManager.prototype.render = function () {
+            /*if (this.debugLastRay) {
+                Game.Instance.debug.geom(this.debugLastRay);
+                Game.Instance.debug.geom(this.debugFirstTile, '#FF9999', true);
+            }*/
         };
         ProjectileManager.prototype.onProjectileHitWall = function (proj) {
             proj.hitWall();
@@ -4085,6 +4213,103 @@ var KGAD;
 })(KGAD || (KGAD = {}));
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
+/// <reference path="AnimatedSprite.ts" />
+var KGAD;
+(function (KGAD) {
+    var HealthBar = (function () {
+        function HealthBar(game, parent) {
+            this.game = game;
+            this.parent = parent;
+            this.position = new Phaser.Point();
+        }
+        Object.defineProperty(HealthBar.prototype, "maxHealth", {
+            get: function () {
+                return this._maxHealth;
+            },
+            set: function (_maxHealth) {
+                this._maxHealth = _maxHealth;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(HealthBar.prototype, "visible", {
+            get: function () {
+                return this.healthBarFrame.visible;
+            },
+            set: function (_visible) {
+                this._visible = _visible;
+                this.healthBarFrame.visible = _visible;
+                this._healthBar.visible = _visible;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        HealthBar.prototype.init = function (maxHealth) {
+            this.healthBarFrame = this.game.make.sprite(0, 0, 'healthbar_frame');
+            this._healthBar = this.game.make.sprite(0, 0, 'healthbar');
+            this.healthBarFrame.visible = false;
+            this._healthBar.visible = false;
+            this.healthBarFrame.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
+            this._healthBar.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
+            this.healthBarFrame.renderPriority = 2;
+            this._healthBar.renderPriority = 1;
+            this.game.world.add(this.healthBarFrame);
+            this.game.world.add(this._healthBar);
+            this.visible = false;
+            this.fullWidth = this._healthBar.width;
+            this.maxHealth = maxHealth || 1;
+            this.updateHealthBarValue();
+            this.updatePosition();
+        };
+        HealthBar.prototype.update = function () {
+            if (this._visible) {
+                this.updatePosition();
+                this.updateHealthBarValue();
+            }
+        };
+        HealthBar.prototype.destroy = function () {
+            this.visible = false;
+            this.healthBarFrame.destroy();
+            this._healthBar.destroy();
+        };
+        HealthBar.prototype.updatePosition = function () {
+            var parent = this.parent;
+            var x = parent.position.x - (32 * parent.anchor.x);
+            var y = parent.position.y - (32 * parent.anchor.y) - this.healthBarFrame.height - 5;
+            this.position.set(x, y);
+            this.healthBarFrame.position.set(x, y);
+            this._healthBar.position.set(x, y);
+            //this._healthBar.bringToTop();
+            //this.healthBarFrame.bringToTop();
+        };
+        HealthBar.prototype.updateHealthBarValue = function () {
+            var parent = this.parent;
+            var health = parent.health;
+            if (health > this.maxHealth) {
+                this.maxHealth = health;
+            }
+            var percent = Phaser.Math.clamp(health / this.maxHealth, 0, 1);
+            this._healthBar.visible = health > 0 && parent.exists && parent.alive && percent < 1;
+            this.healthBarFrame.visible = health > 0 && parent.exists && parent.alive && percent < 1;
+            if (health > 0) {
+                this._healthBar.width = this.fullWidth - Math.ceil(this.fullWidth * (1 - percent));
+                if (percent > 0.5) {
+                    this._healthBar.tint = 0x00FF00;
+                }
+                else if (percent > 0.2 && percent <= 0.5) {
+                    this._healthBar.tint = 0xFFFF00;
+                }
+                else if (percent <= 0.2) {
+                    this._healthBar.tint = 0xFF0000;
+                }
+            }
+        };
+        return HealthBar;
+    })();
+    KGAD.HealthBar = HealthBar;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
     var CollisionHelper = (function () {
@@ -4111,6 +4336,25 @@ var KGAD;
                 hits = map.collisionLayer.getRayCastTiles(line, stepRate, true, false);
             }
             return hits;
+        };
+        CollisionHelper.raycastFirstTile = function (line, stepRate, pixelPoint) {
+            if (stepRate === void 0) { stepRate = 4; }
+            var undef;
+            var map = KGAD.Game.CurrentMap, hit = null, coords;
+            coords = line.coordinatesOnLine(stepRate, undef);
+            for (var k = 0, n = coords.length; k < n; ++k) {
+                var coord = coords[k];
+                var tileCoord = map.fromPixels(coord[0], coord[1]);
+                if (map.isWall(tileCoord.x, tileCoord.y)) {
+                    hit = new Phaser.Rectangle(tileCoord.x * KGAD.GameMap.TILE_WIDTH, tileCoord.y * KGAD.GameMap.TILE_HEIGHT, KGAD.GameMap.TILE_WIDTH, KGAD.GameMap.TILE_HEIGHT);
+                    if (pixelPoint) {
+                        pixelPoint.x = coord[0];
+                        pixelPoint.y = coord[1];
+                    }
+                    break;
+                }
+            }
+            return hit;
         };
         /**
          *  Performs a raycast for sprites.
@@ -5407,8 +5651,101 @@ var KGAD;
             }
             return result;
         };
+        /**
+         *  Fill an array with the given value.
+         */
+        Arrays.fill = function (arr, length, value) {
+            for (var i = 0; i < length; ++i) {
+                arr[i] = value;
+            }
+            return arr;
+        };
         return Arrays;
     })();
     KGAD.Arrays = Arrays;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    /**
+     *  Contains a set of static utility functions for text manipulation.
+     */
+    var Text = (function () {
+        function Text() {
+        }
+        /**
+         *  Creates a text object.
+         */
+        Text.createText = function (text, opts) {
+            opts = opts || {};
+            var x = opts.x || 0;
+            var y = opts.y || 0;
+            var styles = $.extend({}, Text.defaultStyle, opts.style);
+            var game = KGAD.Game.Instance;
+            var width = KGAD.Game.Width;
+            var height = KGAD.Game.Height;
+            var textObject = game.make.text(x, y, text, styles);
+            if (!!opts.centered) {
+                textObject.x = (width / 2) - (textObject.width / 2);
+                textObject.y = (height / 2) - (textObject.height / 2);
+            }
+            else {
+                if (!!opts.centeredX) {
+                    textObject.x = (width / 2) - (textObject.width / 2);
+                }
+                if (!!opts.centeredY) {
+                    textObject.y = (height / 2) - (textObject.height / 2);
+                }
+            }
+            textObject.fixedToCamera = !!opts.fixedToCamera;
+            if (!!opts.addToWorld) {
+                game.world.add(textObject);
+            }
+            return textObject;
+        };
+        /**
+         *  Create multiple text lines.
+         */
+        Text.createLines = function (text, opts, spacing) {
+            if (spacing === void 0) { spacing = 0; }
+            opts = opts || {};
+            var lines = [];
+            var originalY = opts.y || 0;
+            opts.y = originalY;
+            for (var i = 0, l = text.length; i < l; ++i) {
+                var textObject = Text.createText(text[i], opts);
+                opts.y += textObject.height + spacing;
+                lines.push(textObject);
+            }
+            opts.y = originalY;
+            return lines;
+        };
+        /**
+         *  Measures the width and height (in pixels) of the given text.
+         */
+        Text.measureText = function (text, fontSizePixels) {
+            if (fontSizePixels === void 0) { fontSizePixels = 16; }
+            var styles = $.extend({}, Text.defaultStyle, { font: (fontSizePixels | 0).toString() + "px MedievalSharpBook" });
+            var game = KGAD.Game.Instance;
+            var textObject = game.make.text(0, 0, text, styles);
+            var measurements = {
+                width: textObject.width,
+                height: textObject.height
+            };
+            textObject.destroy();
+            return measurements;
+        };
+        /**
+         *  Gets or sets the default text style.
+         */
+        Text.defaultStyle = {
+            fill: "#FFFFFF",
+            font: "16px MedievalSharpBook",
+            align: "left"
+        };
+        return Text;
+    })();
+    KGAD.Text = Text;
 })(KGAD || (KGAD = {}));
 //# sourceMappingURL=app.js.map

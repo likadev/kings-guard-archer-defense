@@ -41,42 +41,51 @@ module KGAD {
             this.containerWidth = this.containerWidth || this.game.world.width;
             this.containerHeight = this.containerHeight || this.game.world.height;
 
-            var header = this.game.make.text(0, 0, "King's Guard: Archer Defense", {
-                font: "32px MedievalSharpBook",
-                fill: "#FFFFFF",
-                align: 'center'
+            var header = Text.createText("King's Guard: Archer Defense", {
+                centeredX: true,
+                style: {
+                    font: "32px MedievalSharpBook",
+                    align: "center"
+                },
+                addToWorld: true,
+                fixedToCamera: true
             });
-            header.x = this.centerX - (header.width / 2);
-            header.y = 0;
 
-            var subheader = this.game.make.text(0, 0, "(Pre-alpha)", {
-                font: "24px MedievalSharpBook",
-                fill: "#AAAAAA",
-                align: 'center'
+            Text.createText("(Pre-alpha)", {
+                centeredX: true,
+                y: header.height + 2,
+                style: {
+                    font: "24px MedievalSharpBook",
+                    fill: "#AAAAAA",
+                    align: "center"
+                },
+                addToWorld: true,
+                fixedToCamera: true
             });
-            subheader.x = this.centerX - (subheader.width / 2);
-            subheader.y = header.height + 2;
 
-            var footer = this.game.make.text(0, 0, "Tip: Hold down the 'fire' button to charge your weapon.", {
-                font: "16px MedievalSharpBook",
-                fill: "#FFFFFF",
-                align: 'center'
+            var footerHeight = Text.measureText("Tip: Hold down the 'fire' button to charge your weapon.", 16).height;
+            Text.createText("Tip: Hold down the 'fire' button to charge your weapon.", {
+                style: {
+                    font: "16px MedievalSharpBook",
+                    align: "center"
+                },
+                centeredX: true,
+                y: this.containerHeight - footerHeight * 2,
+                addToWorld: true,
+                fixedToCamera: true
             });
-            footer.x = this.centerX - (footer.width / 2);
-            footer.y = this.containerHeight - footer.height * 2;
 
-            var subfooter = this.game.make.text(0, 0, "(Z, Y, Space, or XBox 360 'A' button)", {
-                font: "16px MedievalSharpBook",
-                fill: "#AAAAAA",
-                align: 'center'
+            Text.createText("(Z, Y, Space, or XBox 360 'A' button)", {
+                style: {
+                    font: "16px MedievalSharpBook",
+                    fill: "#AAAAAA",
+                    align: "center"
+                },
+                y: this.containerHeight - footerHeight,
+                centeredX: true,
+                addToWorld: true,
+                fixedToCamera: true,
             });
-            subfooter.x = this.centerX - (subfooter.width / 2);
-            subfooter.y = this.containerHeight - footer.height;
-
-            this.game.world.add(header);
-            this.game.world.add(subheader);
-            this.game.world.add(footer);
-            this.game.world.add(subfooter);
 
             var buttonWidth = 128;
             var buttonHeight = 64;

@@ -52,5 +52,16 @@ module KGAD {
 
             return result;
         }
+
+        /**
+         *  Fill an array with the given value.
+         */
+        public static fill<T>(arr: T[], length: number, value: T): T[] {
+            for (var i = 0; i < length; ++i) {
+                arr[i] = value;
+            }
+
+            return arr;
+        } 
     }
 }

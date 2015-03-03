@@ -67,6 +67,8 @@ module KGAD {
             this.game.load.image('basic_arrow', 'assets/textures/weapons/basic_arrow.png');
             this.game.load.image('basic_arrow_dead', 'assets/textures/weapons/basic_arrow_dead.png');
             this.game.load.image('black', 'assets/textures/misc/black.png');
+            this.game.load.image('healthbar', 'assets/textures/misc/healthbar.png');
+            this.game.load.image('healthbar_frame', 'assets/textures/misc/healthbar_frame.png');
         }
 
         create(): void {

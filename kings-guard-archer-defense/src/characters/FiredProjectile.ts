@@ -9,6 +9,9 @@ module KGAD {
         public attachedTo: AnimatedSprite;
         public dead: boolean;
         public chargePower: number;
+        public wallWasHit: boolean;
+        public aliveTime: number;
+        public hitWallPoint: Phaser.Point;
         private offsetPosition: Phaser.Point;
         private originalDirection: Directions;
         protected _deadSpriteKey: string;
@@ -35,12 +38,14 @@ module KGAD {
 
             this.weapon.lastFireTime = this.game.time.now;
 
-            this.direction = MovementHelper.getDirectionFromAngle(this.rotation);
+            //this.direction = MovementHelper.getDirectionFromAngle(this.rotation);
             if (this.direction == Directions.Up || this.direction == Directions.Down) {
                 var h = this.body.width;
                 this.body.width = this.body.height;
                 this.body.height = h;
             }
+
+            this.aliveTime = this.lifespan;
         }
 
         public get deadSpriteKey() {
@@ -66,6 +71,7 @@ module KGAD {
         }
 
         public attachTo(who: AnimatedSprite): void {
+            this.wallWasHit = true;
             this.attachedTo = who;
             this.dead = true;
             if (this._deadSpriteKey) {
@@ -83,16 +89,23 @@ module KGAD {
         }
 
         public hitWall() {
+            this.wallWasHit = true;
             this.dead = true;
             if (this._deadSpriteKey) {
-                this.loadTexture(this._deadSpriteKey, 0, false);
-                var angle = MovementHelper.getAngleFromDirection(this.direction);
-                var pos = new Phaser.Point(this.x + Math.cos(angle) * 3, this.y + Math.sin(angle) * 3);
-                this.position = pos;
+                this.createDeadProjectile();
             }
+
+            this.kill();
         }
 
         update(): void {
+            if (!this.dead && this.aliveTime > 0) {
+                this.aliveTime -= this.game.time.physicsElapsedMS;
+                if (this.aliveTime <= 0) {
+                    this.hitWall();
+                }
+            }
+
             if (this.attachedTo != null) {
                 this.position = Phaser.Point.subtract(this.attachedTo.position, this.offsetPosition);
                 if (this.attachedTo.direction != this.originalDirection) {
@@ -105,6 +118,28 @@ module KGAD {
                     this.alpha = Math.min(this.alpha, this.attachedTo.alpha);
                 }
             }
+        }
+
+        private createDeadProjectile() {
+            if (!this.deadSpriteKey) {
+                return;
+            }
+
+            var pos = new Phaser.Point(this.x + Math.cos(angle) * 3, this.y + Math.sin(angle) * 3);
+            if (this.hitWallPoint && this.wallWasHit) {
+                pos = this.hitWallPoint;
+            }
+
+            var sprite = this.game.add.sprite(pos.x, pos.y, this.deadSpriteKey);
+            (<any>sprite).renderPriorty = this.renderPriority - 1;
+            sprite.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
+            var angle = MovementHelper.getAngleFromDirection(this.direction);
+            sprite.rotation = angle;
+            sprite.anchor.set(1, 0.5);
+
+            this.game.time.events.add(this.weapon.aliveTime,() => {
+                this.game.add.tween(sprite).to({ alpha: 0 }, 500, Phaser.Easing.Linear.None, true);
+            }, this);
         }
     }
 }

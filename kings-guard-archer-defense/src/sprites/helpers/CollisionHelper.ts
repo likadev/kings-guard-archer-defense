@@ -28,6 +28,30 @@ module KGAD {
             return hits;
         }
 
+        public static raycastFirstTile(line: Phaser.Line, stepRate: number = 4, pixelPoint?: Phaser.Point): Phaser.Rectangle {
+            var undef;
+            var map = Game.CurrentMap,
+                hit: Phaser.Rectangle = null,
+                coords: Phaser.Point[];
+
+            coords = line.coordinatesOnLine(stepRate, undef);
+
+            for (var k = 0, n = coords.length; k < n; ++k) {
+                var coord = coords[k];
+                var tileCoord = map.fromPixels(coord[0], coord[1]);
+                if (map.isWall(tileCoord.x, tileCoord.y)) {
+                    hit = new Phaser.Rectangle(tileCoord.x * GameMap.TILE_WIDTH, tileCoord.y * GameMap.TILE_HEIGHT, GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT);
+                    if (pixelPoint) {
+                        pixelPoint.x = coord[0];
+                        pixelPoint.y = coord[1];
+                    }
+                    break;
+                }
+            }
+
+            return hit;
+        }
+
         /**
          *  Performs a raycast for sprites.
          */

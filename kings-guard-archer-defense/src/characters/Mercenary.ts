@@ -22,6 +22,10 @@ module KGAD {
         }
 
         init(...args: any[]) {
+            super.init(args);
+
+            this.hasHealthBar = true;
+
             this.weapon = new Weapon(this.game, 'short_sword', {
                 cooldown: 1500,
                 range: 33,
@@ -105,6 +109,7 @@ module KGAD {
         }
 
         update(): void {
+            super.update();
             var dead = !this.alive || !this.exists || this.health <= 0;
 
             if (dead || this.weapon.isBackSwinging()) {

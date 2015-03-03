@@ -32,6 +32,7 @@ module KGAD {
         init(...args: any[]) {
             super.init(args);
 
+            this.hasHealthBar = true;
             this.body.immovable = true;
 
             this.weapon = new Weapon(this.game, 'short_sword', {

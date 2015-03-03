@@ -98,20 +98,7 @@ module KGAD {
             }
         }
 
-        preUpdate(): void {
-            //this.hero.preUpdate();
-        }
-
         update(): void {
-            /*if (this.input.keyboard.isDown(Phaser.Keyboard.TILDE)) {
-                if (this.actors.king.alive) {
-                    this.actors.king.kill();
-                }
-            }
-            else if (this.input.keyboard.isDown(Phaser.Keyboard.ONE)) {
-                this.showVictoryAnimation();
-            }*/
-
             var projectiles = this.projectiles;
 
             projectiles.update();
@@ -119,7 +106,7 @@ module KGAD {
             var physics = this.game.physics.arcade;
             var actors = this.actors;
 
-            physics.overlap(projectiles.getActiveProjectiles(), this.actors.enemies,(first, second) => {
+            physics.collide(projectiles.getActiveProjectiles(), this.actors.enemies,(first, second) => {
                 this.handleProjectileCollision(first, second);
             });
 
@@ -180,6 +167,8 @@ module KGAD {
             if (!this.done) {
                 /*this.actors.render();
                 OccupiedGrid.render();*/
+
+                this.projectiles.render();
             }
         }
 
@@ -206,7 +195,7 @@ module KGAD {
                 else {
                     this.game.time.events.add(30000,() => {
                         this.actors.destroy(true);
-                        this.game.state.start(States.Boot, true, true);
+                        this.game.state.start(States.Boot, true, false);
                     }, this);
                 }
             };
@@ -248,6 +237,7 @@ module KGAD {
                 tween.start();
 
                 var fadeSprite = this.game.make.sprite(0, 0, 'black');
+                (<any>fadeSprite).renderPriority = 9999;
                 fadeSprite.width = this.camera.view.width;
                 fadeSprite.height = this.camera.view.height;
                 fadeSprite.fixedToCamera = true;
@@ -305,10 +295,34 @@ module KGAD {
                         if (child2 instanceof Phaser.Sprite) {
                             var y2 = child2.y;
 
-                            if (y2 < y1) {
+                            var renderPriority1 = (<any>child1).renderPriority || 0;
+                            var renderPriority2 = (<any>child2).renderPriority || 0;
+
+                            if (renderPriority2 < renderPriority1) {
                                 children[i] = child2;
                                 children[j] = child1;
                                 break;
+                            }
+
+                            if (renderPriority1 === renderPriority2) {
+                                /*if (child2.key === 'black') {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }
+
+                                if ((child1.key === 'healthbar' || child1.key === 'healthbar_frame') &&
+                                    child2.key !== 'healthbar' && child2.key !== 'healthbar_frame') {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }*/
+
+                                if (y2 < y1) {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }
                             }
                         }
                     }

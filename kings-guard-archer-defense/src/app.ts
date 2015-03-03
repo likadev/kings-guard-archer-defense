@@ -49,6 +49,20 @@ module KGAD {
         }
 
         /**
+         *  Gets the width of the container area.
+         */
+        public static get Width(): number {
+            return $('#container').innerWidth();
+        }
+
+        /**
+         *  Gets the height of the container area.
+         */
+        public static get Height(): number {
+            return $('#container').innerHeight();
+        }
+
+        /**
          *  Gets the actors in the current game simulation.
          */
         public static get Actors(): Actors {
@@ -90,14 +104,6 @@ module KGAD {
             return this.Simulation == null ? null : this.Simulation.projectiles;
         }
 
-        public static get onBlur() {
-            return this._onBlur;
-        }
-
-        public static get onFocus() {
-            return this._onFocus;
-        }
-
         constructor(width: number, height: number, container: string) {
             if (Game.instance != null) {
                 throw Error('Cannot create more than one \'Game\' instance!');
@@ -113,9 +119,6 @@ module KGAD {
             super(width, height, renderer, container);
 
             Game.instance = this;
-
-            Game._onBlur = new Phaser.Signal();
-            Game._onFocus = new Phaser.Signal();
 
             if (!isChrome) {
                 $('#messages').append(
@@ -189,7 +192,12 @@ window.onload = () => {
 
         $('#content').html('');
 
-        game = new KGAD.Game(640, 640, 'content');
+        var width = $('#container').innerWidth();
+        var height = $('#container').innerHeight();
+
+        console.log('game size: ' + width + 'x' + height);
+
+        game = new KGAD.Game(width, height, 'content');
     }
     finally {
 

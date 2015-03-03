@@ -12,8 +12,14 @@ module KGAD {
             this.health = 35;
         }
 
+        public init(...args: any[]) {
+            super.init(args);
+
+            this.hasHealthBar = true;
+        }
+
         public get weight(): number {
-            return 50;
+            return 4;
         }
     }
 }
