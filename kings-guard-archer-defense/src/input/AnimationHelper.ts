@@ -57,5 +57,106 @@ module KGAD {
             obj.tint = 0xFFFFFF;
             return tween;
         }
+
+        public static createTextPopup(text: string, fadeInDelay: number = 300, fadeOutDelay = 3000, onComplete?: () => any) {
+            var game = Game.Instance;
+
+            var y = 125;
+
+            var shadowProps = {
+                centeredX: true,
+                y: y + 1,
+                fixedToCamera: true,
+                style: {
+                    font: '37px MedievalSharpBook',
+                    fill: '#000000'
+                }
+            };
+
+            var shadowText = Text.createText(text, shadowProps);
+            var shadowText2 = Text.createText(text, shadowProps);
+            shadowText.alpha = 0;
+            shadowText2.alpha = 0;
+
+            var headerText = Text.createText(text, {
+                centeredX: true,
+                y: y,
+                fixedToCamera: true,
+                style: {
+                    font: '36px MedievalSharpBook'
+                }
+            });
+            headerText.alpha = 0;
+
+            shadowText.preUpdate = function() {
+                shadowText.x = headerText.x - 2;
+                shadowText.y = headerText.y - 2;
+                shadowText2.x = headerText.x + 2;
+                shadowText2.y = headerText.y + 2;
+                shadowText.alpha = headerText.alpha;
+                shadowText2.alpha = headerText.alpha;
+            };
+
+            game.world.add(shadowText);
+            game.world.add(headerText);
+
+            var fadeIn = game.add.tween(headerText).to({ y: 70, alpha: 1 }, fadeInDelay, Phaser.Easing.Linear.None, false, 0);
+            fadeIn.onComplete.addOnce(() => {
+                var flash = game.add.tween(headerText).to({ tint: 0xFF00FF }, 20, <any>Phaser.Easing.Cubic.InOut, true, 0, 3, true);
+                var fadeOut = game.add.tween(headerText).to({ y: 75, alpha: 0 }, fadeInDelay, Phaser.Easing.Linear.None, false, fadeOutDelay);
+                if (onComplete) {
+                    fadeOut.onComplete.addOnce(onComplete);
+                }
+                fadeOut.start();
+            });
+            fadeIn.start();
+        }
+
+        public static createTextSubPopup(text: string, fadeInDelay: number = 300, fadeOutDelay = 3000, onComplete?: () => any) {
+            var game = Game.Instance;
+
+            var y = 165;
+
+            var shadowText = Text.createText(text, {
+                centeredX: true,
+                y: y + 1,
+                fixedToCamera: true,
+                style: {
+                    font: '24px MedievalSharpBook',
+                    fill: '#000000'
+                }
+            });
+            shadowText.alpha = 0;
+
+            var headerText = Text.createText(text, {
+                centeredX: true,
+                y: y,
+                fixedToCamera: true,
+                style: {
+                    font: '24px MedievalSharpBook',
+                    fill: '#EEEEEE'
+                }
+            });
+            headerText.alpha = 0;
+
+            shadowText.preUpdate = function () {
+                shadowText.x = headerText.x - 1;
+                shadowText.y = headerText.y - 1;
+                shadowText.alpha = headerText.alpha;
+            };
+
+            game.world.add(shadowText);
+            game.world.add(headerText);
+
+            var fadeIn = game.add.tween(headerText).to({ y: 70, alpha: 1 }, fadeInDelay, Phaser.Easing.Linear.None, false, 0);
+            fadeIn.onComplete.addOnce(() => {
+                var fadeOut = game.add.tween(headerText).to({ y: 75, alpha: 0 }, fadeInDelay, Phaser.Easing.Linear.None, false, fadeOutDelay);
+                if (onComplete) {
+                    fadeOut.onComplete.addOnce(onComplete);
+                }
+                fadeOut.start();
+            });
+            fadeIn.start();
+        }
     }
 } 

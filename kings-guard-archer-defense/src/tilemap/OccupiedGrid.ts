@@ -528,7 +528,13 @@ module KGAD {
                 OccupiedGrid._grid[idx] = sprite;
             }
 
+            OccupiedGrid.updateIndices(sprite, indices);
+
             return true;
+        }
+
+        private static updateIndices(sprite: any, indices: number[]) {
+            sprite.gridIndices = indices;
         }
 
         /**
@@ -551,20 +557,6 @@ module KGAD {
                         processed.push(occupant);
                     }
                 }
-            }
-        }
-
-        /**
-         *  Update the occupied grid based on the positions of the sprites.
-         */
-        public static update(sprite?: AnimatedSprite): void {
-            if (sprite == null) {
-                OccupiedGrid.forEach((sprite, idx) => {
-                    OccupiedGrid.add(sprite);
-                });
-            }
-            else {
-                OccupiedGrid.add(sprite);
             }
         }
 

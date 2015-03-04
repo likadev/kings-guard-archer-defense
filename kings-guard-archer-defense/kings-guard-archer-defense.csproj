@@ -60,6 +60,9 @@
     <TypeScriptCompile Include="src\characters\ProjectileGenerator.ts" />
     <TypeScriptCompile Include="src\characters\Weapon.ts" />
     <TypeScriptCompile Include="src\characters\WeaponOptions.ts" />
+    <TypeScriptCompile Include="src\game\controllers\GameController.ts" />
+    <TypeScriptCompile Include="src\game\controllers\SimulationController.ts" />
+    <TypeScriptCompile Include="src\game\controllers\SkillChallengeController.ts" />
     <TypeScriptCompile Include="src\game\ScriptEngine.ts" />
     <TypeScriptCompile Include="src\game\scripting\Script.ts" />
     <TypeScriptCompile Include="src\game\ThreatTable.ts" />
@@ -82,9 +85,11 @@
     <TypeScriptCompile Include="src\sprites\helpers\CollisionHelper.ts" />
     <TypeScriptCompile Include="src\sprites\helpers\PathMovementMachine.ts" />
     <TypeScriptCompile Include="src\states\BootState.ts" />
+    <TypeScriptCompile Include="src\states\GameContext.ts" />
     <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
     <TypeScriptCompile Include="src\states\MainMenuState.ts" />
     <TypeScriptCompile Include="src\states\PreGameLoadingState.ts" />
+    <TypeScriptCompile Include="src\game\controllers\PrepareDefenseController.ts" />
     <TypeScriptCompile Include="src\states\SkillChallengeIntroState.ts" />
     <TypeScriptCompile Include="src\states\States.ts" />
     <TypeScriptCompile Include="src\tilemap\CustomPathfindingGridNode.ts" />
@@ -93,6 +98,7 @@
     <TypeScriptCompile Include="src\tilemap\Path.ts" />
     <TypeScriptCompile Include="src\tilemap\Pathfinding.ts" />
     <TypeScriptCompile Include="src\util\Arrays.ts" />
+    <TypeScriptCompile Include="src\util\Input.ts" />
     <TypeScriptCompile Include="src\util\Text.ts" />
   </ItemGroup>
   <ItemGroup>
@@ -161,6 +167,8 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptRemoveComments>true</TypeScriptRemoveComments>
     <TypeScriptSourceMap>false</TypeScriptSourceMap>
+    <TypeScriptOutFile>js/app.js</TypeScriptOutFile>
+    <TypeScriptOutDir>js</TypeScriptOutDir>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
 </Project>

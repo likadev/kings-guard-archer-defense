@@ -151,6 +151,9 @@ module KGAD {
                 states.switchTo(States.PreGameLoading, true, false, this.map, this.script, this.skillChallenge);
                 return;
             }
+            else if (this.map && !this.map.ready) {
+                return;
+            }
 
             if (this.cursors.up.justDown || this.input.gamepad.justPressed(Phaser.Gamepad.XBOX360_DPAD_UP)) {
                 this.decrementButtonIndex();

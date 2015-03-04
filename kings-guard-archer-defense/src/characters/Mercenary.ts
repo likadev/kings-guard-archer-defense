@@ -8,6 +8,7 @@ module KGAD {
     export class Mercenary extends AnimatedSprite {
         private threatTable: ThreatTable;
         protected startingPoint: Phaser.Point;
+        protected startingDirection: Directions;
         protected damageTween: Phaser.Tween;
         protected currentTarget: Enemy;
         protected engageRange: number;
@@ -18,7 +19,7 @@ module KGAD {
 
             this.movementSpeed = 50;
             this.health = 3;
-            this.engageRange = 64;
+            this.engageRange = 128;
         }
 
         init(...args: any[]) {
@@ -28,7 +29,7 @@ module KGAD {
 
             this.weapon = new Weapon(this.game, 'short_sword', {
                 cooldown: 1500,
-                range: 33,
+                range: 36,
                 backSwing: 500,
                 power: 1,
             });
@@ -36,16 +37,31 @@ module KGAD {
             this.threatTable = new ThreatTable(this);
             this.threatTable.highestThreatChanged.add((sprite) => { this.onHighestThreatTargetChanged(sprite); });
             AnimationLoader.addAnimationToSprite(this, this.key);
+
+            this.blocked.add(this.onBlocked, this);
         }
 
         addToWorld(): void {
             super.addToWorld();
 
-            this.startingPoint = new Phaser.Point(this.x, this.y);
+            this.startingPoint = this.map.toPixels(this.map.fromPixels(this.x, this.y)).add(16, 16);
+            this.startingDirection = this.direction;
+        }
+
+        private onBlocked(occupants: AnimatedSprite[]) {
+            this.unsetCurrentPath();
+
+            if (this.currentTarget == null) {
+                this.goHome();
+            }
         }
 
         public checkThreatAgainst(enemy: Enemy): void {
             var distance = Phaser.Point.distance(this.startingPoint, enemy);
+            if (distance > this.engageRange) {
+                return;
+            }
+
             if (distance <= this.engageRange) {
                 var threat = (Math.max(1,(this.engageRange - distance)) / this.engageRange) * 0.075;
                 this.threatTable.addThreat(enemy, threat);
@@ -53,6 +69,20 @@ module KGAD {
             else {
                 this.threatTable.addThreat(enemy, -0.1);
             }
+        }
+
+        public get weight(): number {
+            if (this.action === Actions.Firing) {
+                return 0;
+            }
+            else if (this.action === Actions.Standing) {
+                return 5;
+            }
+            else if (this.action === Actions.Dead || this.action === Actions.Dying) {
+                return 1;
+            }
+
+            return 2;
         }
 
         public get alliance(): Alliance {
@@ -118,18 +148,24 @@ module KGAD {
 
             this.threatTable.update();
 
-            if (this.currentTarget != null) {
-                this.action = Actions.Firing;
-                this.face(this.currentTarget);
-                this.updateAnimation();
-                this.attackTarget();
-
-                if (this.currentTarget.health <= 0) {
-                    this.currentTarget = null;
+            if (this.currentTarget != null && !this.isMoveTweening() && !this.weapon.isBackSwinging() && !this.weapon.isFrontSwinging()) {
+                if (this.inRangeOfTarget()) {
+                    this.unsetCurrentPath();
+                    this.attackTarget();
+                    if (this.currentTarget.health <= 0) {
+                        this.threatTable.removeThreatTarget(this.currentTarget);
+                        this.currentTarget = <Enemy>this.threatTable.getHighestThreatTarget();
+                        if (this.currentTarget == null) {
+                            this.goHome();
+                        }
+                    }
+                }
+                else {
+                    this.moveTowardsTarget();
                 }
             }
 
-            if (this.currentTarget == null) {
+            if (this.currentTarget == null && !this._pathing) {
                 this.action = Actions.Standing;
                 this.updateAnimation();
                 this.currentTarget = <Enemy>this.threatTable.getHighestThreatTarget();
@@ -138,12 +174,52 @@ module KGAD {
 
         private onHighestThreatTargetChanged(sprite: AnimatedSprite) {
             this.currentTarget = <Enemy>sprite;
+            this.unsetCurrentPath();
+
+            if (this.currentTarget == null) {
+                this.goHome();
+            }
+        }
+
+        private goHome() {
+            var homePoint: Phaser.Point = this.startingPoint;
+
+            var onComplete = () => {
+                this.action = Actions.Standing;
+                this.face(this.startingDirection);
+            };
+
+            if (!this.pathfindTo(homePoint, null, onComplete)) {
+                onComplete();
+            }
+        }
+
+        private moveTowardsTarget() {
+            if (!this.alive || this.isMoveTweening()) {
+                return;
+            }
+
+            this.pathfindTo(this.currentTarget.position, null,() => {
+
+            });
+        }
+
+        private inRangeOfTarget(): boolean {
+            var distance = Phaser.Point.distance(this, this.currentTarget);
+            if (distance <= this.weapon.range) {
+                return true;
+            }
+
+            return false;
         }
 
         private attackTarget() {
             if (!this.weapon.canFire) {
                 return;
             }
+
+            this.action = Actions.Firing;
+            this.face(this.currentTarget);
 
             var distance = Phaser.Point.distance(this, this.currentTarget);
             if (distance <= this.weapon.range) {

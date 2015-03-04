@@ -8,269 +8,90 @@ module KGAD {
 
         public actors: Actors;
         public projectiles: ProjectileManager;
-        private done: boolean = false;
         private waveInProgress: boolean;
+        public context: GameContext;
 
         private skillChallengeMode: boolean;
-        private failedSkillChallenge: boolean;
-        private skillChallengeStartTime: number;
-        private skillChallengeEndTime: number;
-        private skillChallengeTimer: Phaser.Text;
+        private createKing: boolean;
 
         constructor() {
             super();
         }
 
+        public get done(): boolean {
+            return (this.context != null ? !!this.context['gameComplete'] : false);
+        }
+
+        public set done(_done: boolean) {
+            this.context['gameComplete'] = _done;
+        }
+
         init(args: any[]) {
             Game.Simulation = this;
 
-            this.map = args[0];
-            this.script = args[1];
-            this.skillChallengeMode = !!args[2];
-            this.failedSkillChallenge = false;
-
-            this.done = false;
-        }
-
-        preload(): void {
-            this.actors = new Actors(this.game, this.map);
-        }
-
-        create(): void {
-            this.map.create();
-            this.script.create();
-
-            this.projectiles = new ProjectileManager();
-
-            OccupiedGrid.reset();
-
-            this.actors.createKing();
-            var hero = this.actors.createHero();
-
-            var camera = this.game.camera;
-            camera.follow(hero, Phaser.Camera.FOLLOW_LOCKON);
-            camera.setBoundsToWorld();
-            camera.roundPx = true;
-
-            this.waveInProgress = true;
-            this.script.nextWave((enemyType: string, position?: Phaser.Point) => {
-                if (this.done) {
-                    return;
-                }
-
-                if (!position) {
-                    position = this.actors.peekNextSpawnPoint();
-                }
-
-                var trySpawn: () => any = null;
-                trySpawn = () => {
-                    var rect = new Phaser.Rectangle(position.x - 16, position.y - 16, 32, 32);
-                    var occupants = OccupiedGrid.getOccupantsInBounds(rect);
-                    if (occupants.length === 0) {
-                        console.log('spawn ' + enemyType + ' at (' + position.x + ', ' + position.y + ')');
-                        var enemy = this.actors.createEnemy(enemyType);
-
-                        if (this.skillChallengeMode) {
-                            enemy.health = 999999999;
-                        }
-                    }
-                    else {
-                        this.game.time.events.add(250,() => {
-                            trySpawn();
-                        }, this);
-                    }
-                };
-
-                trySpawn();
-            });
-
-            console.log('Skill challenge enabled: ' + this.skillChallengeMode);
-            if (this.skillChallengeMode) {
-                this.skillChallengeStartTime = this.game.time.now;
-                this.skillChallengeEndTime = this.skillChallengeStartTime + 180000; // 3mins
-                var timeLeft = this.skillChallengeEndTime - this.skillChallengeStartTime;
-                this.skillChallengeTimer = this.game.add.text(0, 0, 'Time left: ' + this.formatTime(timeLeft), {
-                    font: '16px MedievalSharpBook',
-                    align: 'left',
-                    fill: '#FFFFFF',
-                });
-                this.skillChallengeTimer.fixedToCamera = true;
+            if (args[0] instanceof GameContext) {
+                this.context = args[0];
+                this.createKing = false;
+            }
+            else {
+                this.map = args[0];
+                this.script = args[1];
+                this.skillChallengeMode = !!args[2];
+                this.actors = null;
+                this.context = null;
+                this.createKing = true;
+                this.projectiles = new ProjectileManager();
             }
         }
 
-        update(): void {
-            var projectiles = this.projectiles;
+        preload(): void {
+            if (!this.actors) {
+                this.actors = new Actors(this.game, this.map);
+            }
+        }
 
-            projectiles.update();
+        create(): void {
+            if (this.createKing) {
+                this.map.create();
+                this.actors.createKing();
+                this.actors.createHero();
+            }
 
-            var physics = this.game.physics.arcade;
-            var actors = this.actors;
-
-            physics.collide(projectiles.getActiveProjectiles(), this.actors.enemies,(first, second) => {
-                this.handleProjectileCollision(first, second);
+            this.context = new GameContext({
+                actors: this.actors,
+                game: Game.Instance,
+                map: Game.CurrentMap,
+                grid: OccupiedGrid,
+                projectiles: this.projectiles,
+                script: this.script,
+                skillChallengeMode: this.skillChallengeMode,
+                gameComplete: this.done
             });
 
-            if (this.game.input.activePointer.isDown) {
-                var x = this.game.input.activePointer.worldX;
-                var y = this.game.input.activePointer.worldY;
-                this.handleMouseClicked(x, y);
+            GameController.destroyControllers(false);
+
+            var simulationChildren = [new SkillChallengeController()];
+            var firstController = GameController.createController<SimulationController>('SimulationController', <any>SimulationController, <any>simulationChildren);
+            GameController.createController('PrepareDefenseController', PrepareDefenseController);
+
+            GameController.current = firstController;
+        }
+
+        update(): void {
+            if (this.done || GameController.current == null) {
+                this.switchStates(States.Boot, true, false);
+                return;
             }
 
             this.sortSprites();
 
-            if (this.waveInProgress) {
-                if (!this.script.waveInProgress && this.actors.enemies.length === 0) {
-                    console.log('wave complete!');
-                    this.waveInProgress = false;
-                }
-            }
-
-            if (!actors.hero.alive) {
-                this.failedSkillChallenge = true;
-
-                (<any>this.game.camera).unfollow();
-                this.game.camera.follow(actors.king);
-            }
-
-            if (!actors.king.alive) {
-                if (this.skillChallengeMode && !this.done) {
-                    this.showFailureAnimation();
-                }
-                else if (!this.done) {
-                    this.actors.destroy(true);
-                    this.game.state.start(States.Boot, true, true);
-                }
-
-                this.failedSkillChallenge = true;
-                this.done = true;
-            }
-
-            if (this.skillChallengeMode) {
-                this.skillChallengeStartTime += this.game.time.elapsedMS;
-                var timeLeftMs = this.skillChallengeEndTime - this.skillChallengeStartTime;
-                if (timeLeftMs <= 0) {
-                    if (timeLeftMs <= 0 && !this.failedSkillChallenge) {
-                        this.showVictoryAnimation();
-                    }
-                }
-                else if (!this.done) {
-                    var timeLeft = this.formatTime(timeLeftMs);
-                    this.skillChallengeTimer.text = 'Time left: ' + timeLeft;
-                    if (!this.actors.hero.alive || !this.actors.king.alive) {
-                        this.failedSkillChallenge = true;
-                    }
-                }
-            }
+            GameController.current.update();
         }
 
         render(): void {
-            if (!this.done) {
-                /*this.actors.render();
-                OccupiedGrid.render();*/
-
-                this.projectiles.render();
+            if (!this.done && GameController.current != null) {
+                GameController.current.render();
             }
-        }
-
-        private showVictoryAnimation() {
-            if (this.done) {
-                return;
-            }
-
-            this.done = true;
-
-            this.actors.hero.health = 999;
-            this.actors.king.health = 999;
-
-            var enemies = this.actors.enemies;
-
-            var killEnemy: () => any = null;
-            killEnemy = () => {
-                if (enemies.length > 0) {
-                    var enemy: Enemy = enemies.pop();
-                    enemy.inflictDamage(9999999999, this.actors.hero);
-
-                    this.game.time.events.add(100, killEnemy, this);
-                }
-                else {
-                    this.game.time.events.add(30000,() => {
-                        this.actors.destroy(true);
-                        this.game.state.start(States.Boot, true, false);
-                    }, this);
-                }
-            };
-
-            this.skillChallengeTimer.destroy();
-            this.skillChallengeTimer = null;
-
-            var greatJobText = this.game.add.text(0, 0, 'GREAT JOB!!!', {
-                font: '48px MedievalSharpBook',
-                align: 'center',
-                fill: '#FFFFFF'
-            });
-            greatJobText.x = this.game.camera.width / 2 - greatJobText.width / 2;
-            greatJobText.fixedToCamera = true;
-
-            var tween = this.game.add.tween(greatJobText).to({
-                tint: 0x33FF33
-            }, 250, <any>Phaser.Easing.Cubic.InOut, true, 0, 999, true);
-
-            killEnemy();
-        }
-
-        private showFailureAnimation() {
-            this.game.time.events.add(1000,() => {
-                var failure = this.game.add.text(0, 0, 'YOU ARE A FAILURE', {
-                    font: '36px MedievalSharpBook',
-                    align: 'center',
-                    fill: '#FFFFFF'
-                });
-
-                var failureSprite = this.game.make.sprite(this.camera.width / 2 - failure.width / 2, this.camera.height / 2 - failure.height / 2);
-                failureSprite.addChild(failure);
-                failureSprite.fixedToCamera = true;
-                failureSprite.alpha = 0;
-                failureSprite.anchor.setTo(0.5);
-                this.game.world.add(failureSprite);
-
-                var tween: Phaser.Tween = this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
-                tween.start();
-
-                var fadeSprite = this.game.make.sprite(0, 0, 'black');
-                (<any>fadeSprite).renderPriority = 9999;
-                fadeSprite.width = this.camera.view.width;
-                fadeSprite.height = this.camera.view.height;
-                fadeSprite.fixedToCamera = true;
-                fadeSprite.alpha = 0;
-                this.game.world.add(fadeSprite);
-                var fadeTween = this.game.add.tween(fadeSprite).to({ alpha: 1 }, 4000);
-                fadeTween.onComplete.addOnce(() => {
-                    this.game.time.events.add(2000,() => {
-                        var finalTween = this.game.add.tween(failureSprite).to({ alpha: 0 }, 1000);
-                        finalTween.onComplete.addOnce(() => {
-                            this.actors.destroy(true);
-                            this.game.state.start(States.Boot, true, false);
-                        });
-                        finalTween.start();
-                    }, this);
-                });
-                fadeTween.start();
-
-                fadeSprite.bringToTop();
-                failureSprite.bringToTop();
-            }, this);
-        }
-
-        private formatTime(timeMs: number): string {
-            var date = new Date(timeMs);
-
-            return this.pad(date.getMinutes(), 1, '0') + ':' + this.pad(date.getSeconds(), 2, '0');
-        }
-
-        private pad(n, width, z): string {
-            z = z || '0';
-            n = n + '';
-            return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
         }
 
         /**
@@ -303,26 +124,10 @@ module KGAD {
                                 children[j] = child1;
                                 break;
                             }
-
-                            if (renderPriority1 === renderPriority2) {
-                                /*if (child2.key === 'black') {
-                                    children[i] = child2;
-                                    children[j] = child1;
-                                    break;
-                                }
-
-                                if ((child1.key === 'healthbar' || child1.key === 'healthbar_frame') &&
-                                    child2.key !== 'healthbar' && child2.key !== 'healthbar_frame') {
-                                    children[i] = child2;
-                                    children[j] = child1;
-                                    break;
-                                }*/
-
-                                if (y2 < y1) {
-                                    children[i] = child2;
-                                    children[j] = child1;
-                                    break;
-                                }
+                            else if (renderPriority1 === renderPriority2 && y2 < y1) {
+                                children[i] = child2;
+                                children[j] = child1;
+                                break;
                             }
                         }
                     }
@@ -330,26 +135,22 @@ module KGAD {
             }
         }
 
-        private handleMouseClicked(x: number, y: number) {
-            if (this.skillChallengeMode) {
-                return;
+        /**
+         *  Switch to another state, giving our game context to the target state.
+         */
+        private switchStates(state: string, clearWorld = false, clearCache = false) {
+            if (clearWorld) {
+                GameController.current = null;
+                this.context = null;
+                this.actors.destroy(true);
+                this.actors = null;
             }
 
-            var tile: Phaser.Point = <Phaser.Point>this.map.fromPixels(new Phaser.Point(x, y));
-            var position = (<Phaser.Point>this.map.toPixels(tile)).add(GameMap.TILE_WIDTH / 2, GameMap.TILE_HEIGHT / 2);
-
-            if (OccupiedGrid.canOccupyInPixels(null, position.x, position.y)) {
-                this.actors.createMercenary(position.x, position.y, 'tank_merc');
-            }
+            this.game.state.start(state, clearWorld, clearCache, this.context);
         }
 
-        private handleProjectileCollision(projectile: FiredProjectile, sprite: Enemy) {
-            if (projectile.dead) {
-                return;
-            }
-
-            projectile.attachTo(sprite);
-            sprite.inflictDamage(projectile.power, projectile.firedBy);
+        private switchControllers(controller: GameController) {
+            GameController.current = controller;
         }
     }
 }

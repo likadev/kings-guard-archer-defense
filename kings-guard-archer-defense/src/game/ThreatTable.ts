@@ -97,9 +97,7 @@ module KGAD {
          *  Does maintenance on the current state of the threat table.
          */
         public update() {
-            if (this._highestThreatTarget != null && !this._highestThreatTarget.alive) {
-                this.doTableMaintenance();
-            }
+            this.doTableMaintenance();
         }
 
         /**
@@ -108,7 +106,7 @@ module KGAD {
         private doTableMaintenance(): void {
             var removables: AnimatedSprite[] = [];
 
-            var highestThreatSprite: AnimatedSprite = null;
+            var highestThreatSprite: AnimatedSprite = this._highestThreatTarget;
             var highestThreat = -99999;
 
             for (var i = 0, l = this._table.length; i < l; ++i) {
@@ -123,6 +121,10 @@ module KGAD {
                         highestThreat = entry.threat;
                     }
                 }
+            }
+
+            if (removables.length === this._table.length) {
+                highestThreatSprite = null;
             }
 
             if (this._highestThreatTarget != highestThreatSprite) {

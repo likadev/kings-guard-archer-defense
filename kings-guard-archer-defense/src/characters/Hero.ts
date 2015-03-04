@@ -20,6 +20,7 @@ module KGAD {
         private nextTile: Phaser.Point;
         private lastTile: Phaser.Point;
         private inFiringMotion: boolean;
+        private _disableInput: boolean;
         public weapon: Weapon;
         public pad: Phaser.SinglePad;
         public padIndex: number;
@@ -28,6 +29,7 @@ module KGAD {
             super(game, x, y, key, frame);
 
             this.health = 5;
+            this._disableInput = false;
         }
 
         private addGamepadButtons(): boolean {
@@ -138,6 +140,18 @@ module KGAD {
                     gamepad.pad3.connected ? gamepad.pad3 :
                         gamepad.pad4.connected ? gamepad.pad4 :
                             null;
+        }
+
+        public get disableInput(): boolean {
+            return this._disableInput;
+        }
+
+        public set disableInput(disable: boolean) {
+            this.movementKeyState.up = false;
+            this.movementKeyState.left = false;
+            this.movementKeyState.right = false;
+            this.movementKeyState.down = false;
+            this._disableInput = disable;
         }
 
         public get weight(): number {
@@ -335,7 +349,7 @@ module KGAD {
         }
 
         private fireKeyDown() {
-            if (!this.alive || !this.weapon.canFire || this.weapon.isFrontSwinging() || this.weapon.isBackSwinging()) {
+            if (this.disableInput || !this.alive || !this.weapon.canFire || this.weapon.isFrontSwinging() || this.weapon.isBackSwinging()) {
                 return;
             }
 
@@ -380,7 +394,7 @@ module KGAD {
         }
 
         private fireKeyUp() {
-            if (!this.alive || !this.weapon.canFire || !this.inFiringMotion || this.weapon.isFrontSwinging()) {
+            if (this.disableInput || !this.alive || !this.weapon.canFire || !this.inFiringMotion || this.weapon.isFrontSwinging()) {
                 return;
             }
 
@@ -434,7 +448,7 @@ module KGAD {
          *  Handle moving in the given direction.
          */
         private handleMovement(direction: Directions) {
-            if (/*(this.movementTween != null && this.movementTween.isRunning) || */!this.canMove) {
+            if (this.disableInput || /*(this.movementTween != null && this.movementTween.isRunning) || */!this.canMove) {
                 return;
             }
 
@@ -548,6 +562,10 @@ module KGAD {
          *  Update's the player's movement state based on what keys are pressed.
          */
         private updateMovementState(): void {
+            if (this.disableInput) {
+                return;
+            }
+
             var states = this.movementKeyState;
             var direction: Directions = null;
             if (states.up) {
@@ -635,20 +653,22 @@ module KGAD {
         update(): void {
             super.update();
 
-            this.checkGamepadDpadForFirefox();
+            if (!this.disableInput) {
+                this.checkGamepadDpadForFirefox();
+
+                if (!this.inFiringMotion) {
+                    if (this.isFireKeyDown()) {
+                        this.fireKeyDown();
+                    }
+                }
+                else {
+                    if (this.isFireKeyUp()) {
+                        this.fireKeyUp();
+                    }
+                }
+            }
 
             this.updateCurrentAction();
-
-            if (!this.inFiringMotion) {
-                if (this.isFireKeyDown()) {
-                    this.fireKeyDown();
-                }
-            }
-            else {
-                if (this.isFireKeyUp()) {
-                    this.fireKeyUp();
-                }
-            }
 
             this.weapon.update(this);
         }

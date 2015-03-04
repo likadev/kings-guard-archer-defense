@@ -160,6 +160,9 @@ var KGAD;
                 states.switchTo(KGAD.States.PreGameLoading, true, false, this.map, this.script, this.skillChallenge);
                 return;
             }
+            else if (this.map && !this.map.ready) {
+                return;
+            }
             if (this.cursors.up.justDown || this.input.gamepad.justPressed(Phaser.Gamepad.XBOX360_DPAD_UP)) {
                 this.decrementButtonIndex();
             }
@@ -328,216 +331,72 @@ var KGAD;
         __extends(GameSimulationState, _super);
         function GameSimulationState() {
             _super.call(this);
-            this.done = false;
         }
+        Object.defineProperty(GameSimulationState.prototype, "done", {
+            get: function () {
+                return (this.context != null ? !!this.context['gameComplete'] : false);
+            },
+            set: function (_done) {
+                this.context['gameComplete'] = _done;
+            },
+            enumerable: true,
+            configurable: true
+        });
         GameSimulationState.prototype.init = function (args) {
             KGAD.Game.Simulation = this;
-            this.map = args[0];
-            this.script = args[1];
-            this.skillChallengeMode = !!args[2];
-            this.failedSkillChallenge = false;
-            this.done = false;
+            if (args[0] instanceof KGAD.GameContext) {
+                this.context = args[0];
+                this.createKing = false;
+            }
+            else {
+                this.map = args[0];
+                this.script = args[1];
+                this.skillChallengeMode = !!args[2];
+                this.actors = null;
+                this.context = null;
+                this.createKing = true;
+                this.projectiles = new KGAD.ProjectileManager();
+            }
         };
         GameSimulationState.prototype.preload = function () {
-            this.actors = new KGAD.Actors(this.game, this.map);
+            if (!this.actors) {
+                this.actors = new KGAD.Actors(this.game, this.map);
+            }
         };
         GameSimulationState.prototype.create = function () {
-            var _this = this;
-            this.map.create();
-            this.script.create();
-            this.projectiles = new KGAD.ProjectileManager();
-            KGAD.OccupiedGrid.reset();
-            this.actors.createKing();
-            var hero = this.actors.createHero();
-            var camera = this.game.camera;
-            camera.follow(hero, Phaser.Camera.FOLLOW_LOCKON);
-            camera.setBoundsToWorld();
-            camera.roundPx = true;
-            this.waveInProgress = true;
-            this.script.nextWave(function (enemyType, position) {
-                if (_this.done) {
-                    return;
-                }
-                if (!position) {
-                    position = _this.actors.peekNextSpawnPoint();
-                }
-                var trySpawn = null;
-                trySpawn = function () {
-                    var rect = new Phaser.Rectangle(position.x - 16, position.y - 16, 32, 32);
-                    var occupants = KGAD.OccupiedGrid.getOccupantsInBounds(rect);
-                    if (occupants.length === 0) {
-                        console.log('spawn ' + enemyType + ' at (' + position.x + ', ' + position.y + ')');
-                        var enemy = _this.actors.createEnemy(enemyType);
-                        if (_this.skillChallengeMode) {
-                            enemy.health = 999999999;
-                        }
-                    }
-                    else {
-                        _this.game.time.events.add(250, function () {
-                            trySpawn();
-                        }, _this);
-                    }
-                };
-                trySpawn();
-            });
-            console.log('Skill challenge enabled: ' + this.skillChallengeMode);
-            if (this.skillChallengeMode) {
-                this.skillChallengeStartTime = this.game.time.now;
-                this.skillChallengeEndTime = this.skillChallengeStartTime + 180000; // 3mins
-                var timeLeft = this.skillChallengeEndTime - this.skillChallengeStartTime;
-                this.skillChallengeTimer = this.game.add.text(0, 0, 'Time left: ' + this.formatTime(timeLeft), {
-                    font: '16px MedievalSharpBook',
-                    align: 'left',
-                    fill: '#FFFFFF',
-                });
-                this.skillChallengeTimer.fixedToCamera = true;
+            if (this.createKing) {
+                this.map.create();
+                this.actors.createKing();
+                this.actors.createHero();
             }
+            this.context = new KGAD.GameContext({
+                actors: this.actors,
+                game: KGAD.Game.Instance,
+                map: KGAD.Game.CurrentMap,
+                grid: KGAD.OccupiedGrid,
+                projectiles: this.projectiles,
+                script: this.script,
+                skillChallengeMode: this.skillChallengeMode,
+                gameComplete: this.done
+            });
+            KGAD.GameController.destroyControllers(false);
+            var simulationChildren = [new KGAD.SkillChallengeController()];
+            var firstController = KGAD.GameController.createController('SimulationController', KGAD.SimulationController, simulationChildren);
+            KGAD.GameController.createController('PrepareDefenseController', KGAD.PrepareDefenseController);
+            KGAD.GameController.current = firstController;
         };
         GameSimulationState.prototype.update = function () {
-            var _this = this;
-            var projectiles = this.projectiles;
-            projectiles.update();
-            var physics = this.game.physics.arcade;
-            var actors = this.actors;
-            physics.collide(projectiles.getActiveProjectiles(), this.actors.enemies, function (first, second) {
-                _this.handleProjectileCollision(first, second);
-            });
-            if (this.game.input.activePointer.isDown) {
-                var x = this.game.input.activePointer.worldX;
-                var y = this.game.input.activePointer.worldY;
-                this.handleMouseClicked(x, y);
-            }
-            this.sortSprites();
-            if (this.waveInProgress) {
-                if (!this.script.waveInProgress && this.actors.enemies.length === 0) {
-                    console.log('wave complete!');
-                    this.waveInProgress = false;
-                }
-            }
-            if (!actors.hero.alive) {
-                this.failedSkillChallenge = true;
-                this.game.camera.unfollow();
-                this.game.camera.follow(actors.king);
-            }
-            if (!actors.king.alive) {
-                if (this.skillChallengeMode && !this.done) {
-                    this.showFailureAnimation();
-                }
-                else if (!this.done) {
-                    this.actors.destroy(true);
-                    this.game.state.start(KGAD.States.Boot, true, true);
-                }
-                this.failedSkillChallenge = true;
-                this.done = true;
-            }
-            if (this.skillChallengeMode) {
-                this.skillChallengeStartTime += this.game.time.elapsedMS;
-                var timeLeftMs = this.skillChallengeEndTime - this.skillChallengeStartTime;
-                if (timeLeftMs <= 0) {
-                    if (timeLeftMs <= 0 && !this.failedSkillChallenge) {
-                        this.showVictoryAnimation();
-                    }
-                }
-                else if (!this.done) {
-                    var timeLeft = this.formatTime(timeLeftMs);
-                    this.skillChallengeTimer.text = 'Time left: ' + timeLeft;
-                    if (!this.actors.hero.alive || !this.actors.king.alive) {
-                        this.failedSkillChallenge = true;
-                    }
-                }
-            }
-        };
-        GameSimulationState.prototype.render = function () {
-            if (!this.done) {
-                /*this.actors.render();
-                OccupiedGrid.render();*/
-                this.projectiles.render();
-            }
-        };
-        GameSimulationState.prototype.showVictoryAnimation = function () {
-            var _this = this;
-            if (this.done) {
+            if (this.done || KGAD.GameController.current == null) {
+                this.switchStates(KGAD.States.Boot, true, false);
                 return;
             }
-            this.done = true;
-            this.actors.hero.health = 999;
-            this.actors.king.health = 999;
-            var enemies = this.actors.enemies;
-            var killEnemy = null;
-            killEnemy = function () {
-                if (enemies.length > 0) {
-                    var enemy = enemies.pop();
-                    enemy.inflictDamage(9999999999, _this.actors.hero);
-                    _this.game.time.events.add(100, killEnemy, _this);
-                }
-                else {
-                    _this.game.time.events.add(30000, function () {
-                        _this.actors.destroy(true);
-                        _this.game.state.start(KGAD.States.Boot, true, false);
-                    }, _this);
-                }
-            };
-            this.skillChallengeTimer.destroy();
-            this.skillChallengeTimer = null;
-            var greatJobText = this.game.add.text(0, 0, 'GREAT JOB!!!', {
-                font: '48px MedievalSharpBook',
-                align: 'center',
-                fill: '#FFFFFF'
-            });
-            greatJobText.x = this.game.camera.width / 2 - greatJobText.width / 2;
-            greatJobText.fixedToCamera = true;
-            var tween = this.game.add.tween(greatJobText).to({
-                tint: 0x33FF33
-            }, 250, Phaser.Easing.Cubic.InOut, true, 0, 999, true);
-            killEnemy();
+            this.sortSprites();
+            KGAD.GameController.current.update();
         };
-        GameSimulationState.prototype.showFailureAnimation = function () {
-            var _this = this;
-            this.game.time.events.add(1000, function () {
-                var failure = _this.game.add.text(0, 0, 'YOU ARE A FAILURE', {
-                    font: '36px MedievalSharpBook',
-                    align: 'center',
-                    fill: '#FFFFFF'
-                });
-                var failureSprite = _this.game.make.sprite(_this.camera.width / 2 - failure.width / 2, _this.camera.height / 2 - failure.height / 2);
-                failureSprite.addChild(failure);
-                failureSprite.fixedToCamera = true;
-                failureSprite.alpha = 0;
-                failureSprite.anchor.setTo(0.5);
-                _this.game.world.add(failureSprite);
-                var tween = _this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
-                tween.start();
-                var fadeSprite = _this.game.make.sprite(0, 0, 'black');
-                fadeSprite.renderPriority = 9999;
-                fadeSprite.width = _this.camera.view.width;
-                fadeSprite.height = _this.camera.view.height;
-                fadeSprite.fixedToCamera = true;
-                fadeSprite.alpha = 0;
-                _this.game.world.add(fadeSprite);
-                var fadeTween = _this.game.add.tween(fadeSprite).to({ alpha: 1 }, 4000);
-                fadeTween.onComplete.addOnce(function () {
-                    _this.game.time.events.add(2000, function () {
-                        var finalTween = _this.game.add.tween(failureSprite).to({ alpha: 0 }, 1000);
-                        finalTween.onComplete.addOnce(function () {
-                            _this.actors.destroy(true);
-                            _this.game.state.start(KGAD.States.Boot, true, false);
-                        });
-                        finalTween.start();
-                    }, _this);
-                });
-                fadeTween.start();
-                fadeSprite.bringToTop();
-                failureSprite.bringToTop();
-            }, this);
-        };
-        GameSimulationState.prototype.formatTime = function (timeMs) {
-            var date = new Date(timeMs);
-            return this.pad(date.getMinutes(), 1, '0') + ':' + this.pad(date.getSeconds(), 2, '0');
-        };
-        GameSimulationState.prototype.pad = function (n, width, z) {
-            z = z || '0';
-            n = n + '';
-            return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+        GameSimulationState.prototype.render = function () {
+            if (!this.done && KGAD.GameController.current != null) {
+                KGAD.GameController.current.render();
+            }
         };
         /**
          *  Manually sort the world sprites by their 'y' index. This relies on being called repeatedly (once per frame) in order
@@ -563,46 +422,32 @@ var KGAD;
                                 children[j] = child1;
                                 break;
                             }
-                            if (renderPriority1 === renderPriority2) {
-                                /*if (child2.key === 'black') {
-                                    children[i] = child2;
-                                    children[j] = child1;
-                                    break;
-                                }
-
-                                if ((child1.key === 'healthbar' || child1.key === 'healthbar_frame') &&
-                                    child2.key !== 'healthbar' && child2.key !== 'healthbar_frame') {
-                                    children[i] = child2;
-                                    children[j] = child1;
-                                    break;
-                                }*/
-                                if (y2 < y1) {
-                                    children[i] = child2;
-                                    children[j] = child1;
-                                    break;
-                                }
+                            else if (renderPriority1 === renderPriority2 && y2 < y1) {
+                                children[i] = child2;
+                                children[j] = child1;
+                                break;
                             }
                         }
                     }
                 }
             }
         };
-        GameSimulationState.prototype.handleMouseClicked = function (x, y) {
-            if (this.skillChallengeMode) {
-                return;
+        /**
+         *  Switch to another state, giving our game context to the target state.
+         */
+        GameSimulationState.prototype.switchStates = function (state, clearWorld, clearCache) {
+            if (clearWorld === void 0) { clearWorld = false; }
+            if (clearCache === void 0) { clearCache = false; }
+            if (clearWorld) {
+                KGAD.GameController.current = null;
+                this.context = null;
+                this.actors.destroy(true);
+                this.actors = null;
             }
-            var tile = this.map.fromPixels(new Phaser.Point(x, y));
-            var position = this.map.toPixels(tile).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
-            if (KGAD.OccupiedGrid.canOccupyInPixels(null, position.x, position.y)) {
-                this.actors.createMercenary(position.x, position.y, 'tank_merc');
-            }
+            this.game.state.start(state, clearWorld, clearCache, this.context);
         };
-        GameSimulationState.prototype.handleProjectileCollision = function (projectile, sprite) {
-            if (projectile.dead) {
-                return;
-            }
-            projectile.attachTo(sprite);
-            sprite.inflictDamage(projectile.power, projectile.firedBy);
+        GameSimulationState.prototype.switchControllers = function (controller) {
+            KGAD.GameController.current = controller;
         };
         return GameSimulationState;
     })(Phaser.State);
@@ -829,6 +674,16 @@ var KGAD;
              */
             get: function () {
                 return this.Actors == null ? [] : this.Actors.enemies;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Game, "Context", {
+            /**
+             *  Gets the current game context.
+             */
+            get: function () {
+                return this.Simulation == null ? null : this.Simulation.context;
             },
             enumerable: true,
             configurable: true
@@ -1368,6 +1223,96 @@ var KGAD;
             obj.tint = 0xFFFFFF;
             return tween;
         };
+        AnimationHelper.createTextPopup = function (text, fadeInDelay, fadeOutDelay, onComplete) {
+            if (fadeInDelay === void 0) { fadeInDelay = 300; }
+            if (fadeOutDelay === void 0) { fadeOutDelay = 3000; }
+            var game = KGAD.Game.Instance;
+            var y = 125;
+            var shadowProps = {
+                centeredX: true,
+                y: y + 1,
+                fixedToCamera: true,
+                style: {
+                    font: '37px MedievalSharpBook',
+                    fill: '#000000'
+                }
+            };
+            var shadowText = KGAD.Text.createText(text, shadowProps);
+            var shadowText2 = KGAD.Text.createText(text, shadowProps);
+            shadowText.alpha = 0;
+            shadowText2.alpha = 0;
+            var headerText = KGAD.Text.createText(text, {
+                centeredX: true,
+                y: y,
+                fixedToCamera: true,
+                style: {
+                    font: '36px MedievalSharpBook'
+                }
+            });
+            headerText.alpha = 0;
+            shadowText.preUpdate = function () {
+                shadowText.x = headerText.x - 2;
+                shadowText.y = headerText.y - 2;
+                shadowText2.x = headerText.x + 2;
+                shadowText2.y = headerText.y + 2;
+                shadowText.alpha = headerText.alpha;
+                shadowText2.alpha = headerText.alpha;
+            };
+            game.world.add(shadowText);
+            game.world.add(headerText);
+            var fadeIn = game.add.tween(headerText).to({ y: 70, alpha: 1 }, fadeInDelay, Phaser.Easing.Linear.None, false, 0);
+            fadeIn.onComplete.addOnce(function () {
+                var flash = game.add.tween(headerText).to({ tint: 0xFF00FF }, 20, Phaser.Easing.Cubic.InOut, true, 0, 3, true);
+                var fadeOut = game.add.tween(headerText).to({ y: 75, alpha: 0 }, fadeInDelay, Phaser.Easing.Linear.None, false, fadeOutDelay);
+                if (onComplete) {
+                    fadeOut.onComplete.addOnce(onComplete);
+                }
+                fadeOut.start();
+            });
+            fadeIn.start();
+        };
+        AnimationHelper.createTextSubPopup = function (text, fadeInDelay, fadeOutDelay, onComplete) {
+            if (fadeInDelay === void 0) { fadeInDelay = 300; }
+            if (fadeOutDelay === void 0) { fadeOutDelay = 3000; }
+            var game = KGAD.Game.Instance;
+            var y = 165;
+            var shadowText = KGAD.Text.createText(text, {
+                centeredX: true,
+                y: y + 1,
+                fixedToCamera: true,
+                style: {
+                    font: '24px MedievalSharpBook',
+                    fill: '#000000'
+                }
+            });
+            shadowText.alpha = 0;
+            var headerText = KGAD.Text.createText(text, {
+                centeredX: true,
+                y: y,
+                fixedToCamera: true,
+                style: {
+                    font: '24px MedievalSharpBook',
+                    fill: '#EEEEEE'
+                }
+            });
+            headerText.alpha = 0;
+            shadowText.preUpdate = function () {
+                shadowText.x = headerText.x - 1;
+                shadowText.y = headerText.y - 1;
+                shadowText.alpha = headerText.alpha;
+            };
+            game.world.add(shadowText);
+            game.world.add(headerText);
+            var fadeIn = game.add.tween(headerText).to({ y: 70, alpha: 1 }, fadeInDelay, Phaser.Easing.Linear.None, false, 0);
+            fadeIn.onComplete.addOnce(function () {
+                var fadeOut = game.add.tween(headerText).to({ y: 75, alpha: 0 }, fadeInDelay, Phaser.Easing.Linear.None, false, fadeOutDelay);
+                if (onComplete) {
+                    fadeOut.onComplete.addOnce(onComplete);
+                }
+                fadeOut.start();
+            });
+            fadeIn.start();
+        };
         return AnimationHelper;
     })();
     KGAD.AnimationHelper = AnimationHelper;
@@ -1382,6 +1327,8 @@ var KGAD;
         function AnimatedSprite(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
             this.default_animation = 'face_down';
+            this.autoCull = false;
+            this.checkWorldBounds = false;
             this.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
             //this.texture.baseTexture.mipmap = true;
             this.anchor.setTo(0.5);
@@ -1391,12 +1338,15 @@ var KGAD;
             this.canOccupy = true;
             this.isBlocked = false;
             this.sequentialBlocks = 0;
+            this._pathing = false;
             this.blocked = new Phaser.Signal();
             this.movementTweenCompleted = new Phaser.Signal();
+            this.pathfindingComplete = new Phaser.Signal();
             this.pathFindingMover = new KGAD.PathMovementMachine(this);
             this.movementSpeed = 100;
             this.fixedToCamera = false;
             this.renderPriority = 0;
+            this.visible = false;
         }
         AnimatedSprite.prototype.init = function () {
             var args = [];
@@ -1451,6 +1401,9 @@ var KGAD;
                 if (this.action === KGAD.Actions.Dying || this.action === KGAD.Actions.Dead) {
                     return 1;
                 }
+                else if (this.action === KGAD.Actions.Firing) {
+                    return 0;
+                }
                 return 2;
             },
             enumerable: true,
@@ -1474,6 +1427,7 @@ var KGAD;
                     this.animations.play(this.default_animation);
                 }
                 this.added = true;
+                this.visible = true;
             }
             this.lastPosition = this.position.clone();
             this.lastNode = this.node;
@@ -1497,8 +1451,13 @@ var KGAD;
          *  Face towards another sprite.
          */
         AnimatedSprite.prototype.face = function (sprite) {
-            var angle = this.game.physics.arcade.angleBetween(this.position, sprite.position);
-            this.direction = KGAD.MovementHelper.getDirectionFromAngle(angle);
+            if (typeof sprite === 'number') {
+                this.direction = sprite;
+            }
+            else {
+                var angle = this.game.physics.arcade.angleBetween(this.position, sprite.position);
+                this.direction = KGAD.MovementHelper.getDirectionFromAngle(angle);
+            }
             this.updateAnimation();
         };
         /**
@@ -1548,7 +1507,7 @@ var KGAD;
             return this;
         };
         /**
-         *
+         *  Shows the sprite's death animation, if it has one.
          */
         AnimatedSprite.prototype.showDeathAnimation = function (onDeathAnimationComplete) {
             var _this = this;
@@ -1616,12 +1575,6 @@ var KGAD;
             this.position = new Phaser.Point(position.x, position.y);
             this.position = savedPosition;
             var timeToMove = (distance / this.movementSpeed) * 1000.0;
-            /*this.movementTween = this.game.add.tween(this)
-                .to(position, timeToMove, Phaser.Easing.Linear.None, false, 0);
-            this.movementTween.onComplete.addOnce(() => {
-                this.movementTweenCompleted.dispatch();
-            });
-            this.movementTween.start();*/
             this.movementTween = new KGAD.MoveTween(this.game, this);
             this.movementTween.moveTo(position.x, position.y);
             this.movementTween.completed.addOnce(function () {
@@ -1632,6 +1585,28 @@ var KGAD;
             });
             return true;
         };
+        /**
+         *  Find a path to and begin moving to the target destination.
+         */
+        AnimatedSprite.prototype.pathfindTo = function (x, y, onComplete) {
+            this.stopMovementTween(false);
+            var current = this.map.fromPixels(this.x, this.y);
+            var target = this.map.fromPixels(x, y);
+            var points = this.map.findPath(current, target);
+            if (!points) {
+                return false;
+            }
+            var gridPath = KGAD.OccupiedGrid.convertToGridPath(new KGAD.Path(points));
+            this.pathFindingMover.currentPath = gridPath;
+            if (onComplete) {
+                this.pathfindingComplete.addOnce(onComplete);
+            }
+            this._pathing = true;
+            return true;
+        };
+        /**
+         *  Update the internal understanding of our node position.
+         */
         AnimatedSprite.prototype.updateNodePosition = function () {
             this.lastNode = this.node;
             this.node = new Phaser.Point(Math.floor(this.x / KGAD.OccupiedGrid.NODE_SIZE), Math.floor(this.y / KGAD.OccupiedGrid.NODE_SIZE));
@@ -1656,6 +1631,10 @@ var KGAD;
             }
             var rect = path.next();
             if (rect == null) {
+                if (this._pathing) {
+                    this.pathfindingComplete.dispatch();
+                    this._pathing = false;
+                }
                 this.unsetCurrentPath();
                 return false;
             }
@@ -1671,20 +1650,24 @@ var KGAD;
          *  Called before the 'update' step.
          */
         AnimatedSprite.prototype.preUpdate = function () {
+            //(<any>this)._cache[4] = 0;
             var map = KGAD.Game.CurrentMap;
             if (!this.alive || !this.exists || this.health <= 0) {
                 _super.prototype.preUpdate.call(this);
                 return;
             }
-            if (this.movementTween != null) {
+            if (this.pathFindingMover.currentPath && this.pathFindingMover.currentPath.length > 0 && !this.isMoveTweening()) {
+                this.moveToNextDestination();
+            }
+            if (this.movementTween != null && this.movementTween.isRunning) {
                 this.movementTween.update();
             }
             else {
-                if (this.canOccupyTiles) {
+                if (this.canOccupyTiles && this instanceof KGAD.Hero) {
                     var occupants = [];
-                    if (!KGAD.OccupiedGrid.canOccupyInPixels(this, this.position, null, occupants)) {
+                    if (!KGAD.OccupiedGrid.add(this, occupants)) {
                         ++this.sequentialBlocks;
-                        this.position = this.lastPosition;
+                        this.position = this.lastPosition.clone();
                         if (this.body) {
                             this.body.velocity.setTo(0);
                         }
@@ -1699,7 +1682,6 @@ var KGAD;
                     occupants = [];
                     if (this.sequentialBlocks > 15 || !KGAD.OccupiedGrid.canOccupyInPixels(this, this.position, null, occupants)) {
                     }
-                    KGAD.OccupiedGrid.update(this);
                 }
             }
             this.updateNodePosition();
@@ -1712,6 +1694,10 @@ var KGAD;
         AnimatedSprite.prototype.update = function () {
             _super.prototype.update.call(this);
             this.healthBar.update();
+        };
+        AnimatedSprite.prototype.postUpdate = function () {
+            this._cache[7] = 0;
+            _super.prototype.postUpdate.call(this);
         };
         AnimatedSprite.prototype.render = function () {
         };
@@ -2289,6 +2275,7 @@ var KGAD;
         function Hero(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
             this.health = 5;
+            this._disableInput = false;
         }
         Hero.prototype.addGamepadButtons = function () {
             var gamepad = this.game.input.gamepad;
@@ -2374,6 +2361,20 @@ var KGAD;
             var gamepad = this.game.input.gamepad;
             return gamepad.pad1.connected ? gamepad.pad1 : gamepad.pad2.connected ? gamepad.pad2 : gamepad.pad3.connected ? gamepad.pad3 : gamepad.pad4.connected ? gamepad.pad4 : null;
         };
+        Object.defineProperty(Hero.prototype, "disableInput", {
+            get: function () {
+                return this._disableInput;
+            },
+            set: function (disable) {
+                this.movementKeyState.up = false;
+                this.movementKeyState.left = false;
+                this.movementKeyState.right = false;
+                this.movementKeyState.down = false;
+                this._disableInput = disable;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Hero.prototype, "weight", {
             get: function () {
                 if (this.moving) {
@@ -2545,7 +2546,7 @@ var KGAD;
         };
         Hero.prototype.fireKeyDown = function () {
             var _this = this;
-            if (!this.alive || !this.weapon.canFire || this.weapon.isFrontSwinging() || this.weapon.isBackSwinging()) {
+            if (this.disableInput || !this.alive || !this.weapon.canFire || this.weapon.isFrontSwinging() || this.weapon.isBackSwinging()) {
                 return;
             }
             this.inFiringMotion = true;
@@ -2584,7 +2585,7 @@ var KGAD;
             }*/
         };
         Hero.prototype.fireKeyUp = function () {
-            if (!this.alive || !this.weapon.canFire || !this.inFiringMotion || this.weapon.isFrontSwinging()) {
+            if (this.disableInput || !this.alive || !this.weapon.canFire || !this.inFiringMotion || this.weapon.isFrontSwinging()) {
                 return;
             }
             var chargePower = this.weapon.stopCharging();
@@ -2631,7 +2632,7 @@ var KGAD;
          *  Handle moving in the given direction.
          */
         Hero.prototype.handleMovement = function (direction) {
-            if (!this.canMove) {
+            if (this.disableInput || !this.canMove) {
                 return;
             }
             if (!this.alive) {
@@ -2729,6 +2730,9 @@ var KGAD;
          *  Update's the player's movement state based on what keys are pressed.
          */
         Hero.prototype.updateMovementState = function () {
+            if (this.disableInput) {
+                return;
+            }
             var states = this.movementKeyState;
             var direction = null;
             if (states.up) {
@@ -2799,18 +2803,20 @@ var KGAD;
         };
         Hero.prototype.update = function () {
             _super.prototype.update.call(this);
-            this.checkGamepadDpadForFirefox();
+            if (!this.disableInput) {
+                this.checkGamepadDpadForFirefox();
+                if (!this.inFiringMotion) {
+                    if (this.isFireKeyDown()) {
+                        this.fireKeyDown();
+                    }
+                }
+                else {
+                    if (this.isFireKeyUp()) {
+                        this.fireKeyUp();
+                    }
+                }
+            }
             this.updateCurrentAction();
-            if (!this.inFiringMotion) {
-                if (this.isFireKeyDown()) {
-                    this.fireKeyDown();
-                }
-            }
-            else {
-                if (this.isFireKeyUp()) {
-                    this.fireKeyUp();
-                }
-            }
             this.weapon.update(this);
         };
         Hero.prototype.render = function () {
@@ -2864,7 +2870,7 @@ var KGAD;
             _super.call(this, game, x, y, key, frame);
             this.movementSpeed = 50;
             this.health = 3;
-            this.engageRange = 64;
+            this.engageRange = 128;
         }
         Mercenary.prototype.init = function () {
             var _this = this;
@@ -2876,7 +2882,7 @@ var KGAD;
             this.hasHealthBar = true;
             this.weapon = new KGAD.Weapon(this.game, 'short_sword', {
                 cooldown: 1500,
-                range: 33,
+                range: 36,
                 backSwing: 500,
                 power: 1,
             });
@@ -2885,13 +2891,24 @@ var KGAD;
                 _this.onHighestThreatTargetChanged(sprite);
             });
             KGAD.AnimationLoader.addAnimationToSprite(this, this.key);
+            this.blocked.add(this.onBlocked, this);
         };
         Mercenary.prototype.addToWorld = function () {
             _super.prototype.addToWorld.call(this);
-            this.startingPoint = new Phaser.Point(this.x, this.y);
+            this.startingPoint = this.map.toPixels(this.map.fromPixels(this.x, this.y)).add(16, 16);
+            this.startingDirection = this.direction;
+        };
+        Mercenary.prototype.onBlocked = function (occupants) {
+            this.unsetCurrentPath();
+            if (this.currentTarget == null) {
+                this.goHome();
+            }
         };
         Mercenary.prototype.checkThreatAgainst = function (enemy) {
             var distance = Phaser.Point.distance(this.startingPoint, enemy);
+            if (distance > this.engageRange) {
+                return;
+            }
             if (distance <= this.engageRange) {
                 var threat = (Math.max(1, (this.engageRange - distance)) / this.engageRange) * 0.075;
                 this.threatTable.addThreat(enemy, threat);
@@ -2900,6 +2917,22 @@ var KGAD;
                 this.threatTable.addThreat(enemy, -0.1);
             }
         };
+        Object.defineProperty(Mercenary.prototype, "weight", {
+            get: function () {
+                if (this.action === KGAD.Actions.Firing) {
+                    return 0;
+                }
+                else if (this.action === KGAD.Actions.Standing) {
+                    return 5;
+                }
+                else if (this.action === KGAD.Actions.Dead || this.action === KGAD.Actions.Dying) {
+                    return 1;
+                }
+                return 2;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Mercenary.prototype, "alliance", {
             get: function () {
                 return KGAD.Alliance.Ally;
@@ -2954,16 +2987,23 @@ var KGAD;
                 return;
             }
             this.threatTable.update();
-            if (this.currentTarget != null) {
-                this.action = KGAD.Actions.Firing;
-                this.face(this.currentTarget);
-                this.updateAnimation();
-                this.attackTarget();
-                if (this.currentTarget.health <= 0) {
-                    this.currentTarget = null;
+            if (this.currentTarget != null && !this.isMoveTweening() && !this.weapon.isBackSwinging() && !this.weapon.isFrontSwinging()) {
+                if (this.inRangeOfTarget()) {
+                    this.unsetCurrentPath();
+                    this.attackTarget();
+                    if (this.currentTarget.health <= 0) {
+                        this.threatTable.removeThreatTarget(this.currentTarget);
+                        this.currentTarget = this.threatTable.getHighestThreatTarget();
+                        if (this.currentTarget == null) {
+                            this.goHome();
+                        }
+                    }
+                }
+                else {
+                    this.moveTowardsTarget();
                 }
             }
-            if (this.currentTarget == null) {
+            if (this.currentTarget == null && !this._pathing) {
                 this.action = KGAD.Actions.Standing;
                 this.updateAnimation();
                 this.currentTarget = this.threatTable.getHighestThreatTarget();
@@ -2971,11 +3011,42 @@ var KGAD;
         };
         Mercenary.prototype.onHighestThreatTargetChanged = function (sprite) {
             this.currentTarget = sprite;
+            this.unsetCurrentPath();
+            if (this.currentTarget == null) {
+                this.goHome();
+            }
+        };
+        Mercenary.prototype.goHome = function () {
+            var _this = this;
+            var homePoint = this.startingPoint;
+            var onComplete = function () {
+                _this.action = KGAD.Actions.Standing;
+                _this.face(_this.startingDirection);
+            };
+            if (!this.pathfindTo(homePoint, null, onComplete)) {
+                onComplete();
+            }
+        };
+        Mercenary.prototype.moveTowardsTarget = function () {
+            if (!this.alive || this.isMoveTweening()) {
+                return;
+            }
+            this.pathfindTo(this.currentTarget.position, null, function () {
+            });
+        };
+        Mercenary.prototype.inRangeOfTarget = function () {
+            var distance = Phaser.Point.distance(this, this.currentTarget);
+            if (distance <= this.weapon.range) {
+                return true;
+            }
+            return false;
         };
         Mercenary.prototype.attackTarget = function () {
             if (!this.weapon.canFire) {
                 return;
             }
+            this.action = KGAD.Actions.Firing;
+            this.face(this.currentTarget);
             var distance = Phaser.Point.distance(this, this.currentTarget);
             if (distance <= this.weapon.range) {
                 this.weapon.lastFireTime = this.game.time.now;
@@ -3148,6 +3219,574 @@ var KGAD;
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
+    var GameControllerActivator = (function () {
+        function GameControllerActivator(typ) {
+            this.typ = typ;
+        }
+        GameControllerActivator.prototype.getNew = function (children) {
+            return new this.typ(children);
+        };
+        return GameControllerActivator;
+    })();
+    KGAD.GameControllerActivator = GameControllerActivator;
+    var GameController = (function () {
+        function GameController(children, parent) {
+            if (children === void 0) { children = []; }
+            this.children = children;
+            this.parent = parent;
+        }
+        Object.defineProperty(GameController, "current", {
+            get: function () {
+                return this._current;
+            },
+            set: function (controller) {
+                if (this._current) {
+                    this._current.destroy();
+                }
+                if (controller) {
+                    controller.init(KGAD.Game.Context);
+                    controller.create();
+                }
+                this._current = controller;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "done", {
+            get: function () {
+                return this.context['gameComplete'];
+            },
+            set: function (_done) {
+                this.context['gameComplete'] = _done;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "actors", {
+            get: function () {
+                return this.context['actors'];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "script", {
+            get: function () {
+                return this.context['script'];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "hero", {
+            get: function () {
+                return this.context['actors'].hero;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "king", {
+            get: function () {
+                return this.context['actors'].king;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "mercenaries", {
+            get: function () {
+                return this.actors.mercenaries;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "enemies", {
+            get: function () {
+                return this.actors.enemies;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "game", {
+            get: function () {
+                return this.context['game'];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "map", {
+            get: function () {
+                return this.context['map'];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "world", {
+            get: function () {
+                return this.game.world;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "camera", {
+            get: function () {
+                return this.game.camera;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "skillChallengeMode", {
+            get: function () {
+                return !!this.context['skillChallengeMode'];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(GameController.prototype, "projectiles", {
+            get: function () {
+                return this.context['projectiles'];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        GameController.prototype.init = function (context) {
+            this.context = context;
+            for (var i = 0, l = this.children.length; i < l; ++i) {
+                this.children[i].init(context);
+            }
+        };
+        GameController.prototype.preload = function () {
+            for (var i = 0, l = this.children.length; i < l; ++i) {
+                this.children[i].preload();
+            }
+        };
+        GameController.prototype.create = function () {
+            for (var i = 0, l = this.children.length; i < l; ++i) {
+                this.children[i].create();
+            }
+        };
+        GameController.prototype.update = function () {
+            for (var i = 0, l = this.children.length; i < l; ++i) {
+                this.children[i].update();
+            }
+        };
+        GameController.prototype.render = function () {
+            for (var i = 0, l = this.children.length; i < l; ++i) {
+                this.children[i].render();
+            }
+        };
+        GameController.prototype.destroy = function () {
+            for (var i = 0, l = this.children.length; i < l; ++i) {
+                this.children[i].destroy();
+            }
+        };
+        GameController.prototype.switchTo = function (name) {
+            if (GameController._controllers.containsKey(name)) {
+                var controller = GameController._controllers.getValue(name);
+                GameController.current = controller;
+            }
+        };
+        GameController.createController = function (name, typ, children) {
+            if (children === void 0) { children = []; }
+            var controller = new GameControllerActivator(typ).getNew(children);
+            for (var i = 0, l = children.length; i < l; ++i) {
+                children[i].parent = controller;
+            }
+            controller.preload();
+            GameController._controllers.setValue(name, controller);
+            return controller;
+        };
+        GameController.destroyControllers = function (destroy) {
+            if (destroy === void 0) { destroy = true; }
+            if (destroy) {
+                GameController._controllers.forEach(function (key, value) {
+                    value.destroy();
+                });
+            }
+            GameController._controllers.clear();
+            GameController.current = null;
+        };
+        GameController._current = null;
+        GameController._controllers = new collections.Dictionary();
+        return GameController;
+    })();
+    KGAD.GameController = GameController;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var PrepareDefenseController = (function (_super) {
+        __extends(PrepareDefenseController, _super);
+        function PrepareDefenseController() {
+            _super.apply(this, arguments);
+        }
+        PrepareDefenseController.prototype.preload = function () {
+            _super.prototype.preload.call(this);
+        };
+        PrepareDefenseController.prototype.init = function (context) {
+            var _this = this;
+            _super.prototype.init.call(this, context);
+            var spawnPoint = this.map.toPixels(this.map.heroSpawnPoint);
+            this.hero.pathfindTo(spawnPoint, null, function () {
+                _this.hero.face(2 /* Down */);
+            });
+            KGAD.Input.disablePlayerInput(this.hero);
+        };
+        PrepareDefenseController.prototype.create = function () {
+            var _this = this;
+            _super.prototype.create.call(this);
+            KGAD.AnimationHelper.createTextPopup("PREPARE YOUR DEFENSE");
+            KGAD.AnimationHelper.createTextSubPopup("THIS IS ONLY A PLACEHOLDER FOR NOW");
+            var spawnPoint = this.map.toPixels(this.map.heroSpawnPoint).add(16, 16);
+            var invisSprite = this.game.add.sprite(this.hero.x, this.hero.y);
+            invisSprite.visible = false;
+            this.camera.follow(invisSprite);
+            var moveToCenter = this.game.add.tween(invisSprite).to({ x: spawnPoint.x, y: spawnPoint.y }, 1000, Phaser.Easing.Linear.None, false, 500);
+            moveToCenter.onComplete.addOnce(function () {
+                _this.camera.unfollow();
+                invisSprite.kill();
+            });
+            moveToCenter.start();
+            this.game.time.events.add(5000, function () {
+                _this.switchTo('SimulationController');
+            }, this);
+        };
+        PrepareDefenseController.prototype.update = function () {
+            _super.prototype.update.call(this);
+            var Key = Phaser.Keyboard;
+            if (this.game.input.keyboard.isDown(Key.LEFT)) {
+                this.game.camera.x -= 125 * this.game.time.physicsElapsed;
+            }
+            else if (this.game.input.keyboard.isDown(Key.RIGHT)) {
+                this.game.camera.x += 125 * this.game.time.physicsElapsed;
+            }
+            if (this.game.input.keyboard.isDown(Key.UP)) {
+                this.game.camera.y -= 125 * this.game.time.physicsElapsed;
+            }
+            else if (this.game.input.keyboard.isDown(Key.DOWN)) {
+                this.game.camera.y += 125 * this.game.time.physicsElapsed;
+            }
+        };
+        PrepareDefenseController.prototype.destroy = function () {
+            _super.prototype.destroy.call(this);
+            //Input.enablePlayerInput(this.hero);
+        };
+        return PrepareDefenseController;
+    })(KGAD.GameController);
+    KGAD.PrepareDefenseController = PrepareDefenseController;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var SimulationController = (function (_super) {
+        __extends(SimulationController, _super);
+        function SimulationController() {
+            _super.apply(this, arguments);
+        }
+        SimulationController.prototype.init = function (context) {
+            _super.prototype.init.call(this, context);
+            this.waveInProgress = false;
+        };
+        SimulationController.prototype.preload = function () {
+            _super.prototype.preload.call(this);
+        };
+        SimulationController.prototype.create = function () {
+            var _this = this;
+            _super.prototype.create.call(this);
+            var spawnPoint = this.map.toPixels(this.map.heroSpawnPoint).add(16, 16);
+            var invisSprite = this.game.add.sprite(this.hero.x, this.hero.y);
+            invisSprite.visible = false;
+            if (this.script.waveIndex === 0) {
+                this.camera.follow(this.hero, Phaser.Camera.FOLLOW_LOCKON);
+                this.camera.setBoundsToWorld();
+                this.camera.roundPx = true;
+            }
+            else {
+                var moveToCenter = this.game.add.tween(invisSprite).to({ x: spawnPoint.x, y: spawnPoint.y }, 1000, Phaser.Easing.Linear.None, false, 0);
+                moveToCenter.onComplete.addOnce(function () {
+                    _this.camera.unfollow();
+                    invisSprite.kill();
+                    _this.camera.follow(_this.hero, Phaser.Camera.FOLLOW_LOCKON);
+                    _this.camera.setBoundsToWorld();
+                    _this.camera.roundPx = true;
+                    KGAD.Input.enablePlayerInput(_this.hero);
+                });
+                moveToCenter.start();
+                this.camera.follow(invisSprite);
+            }
+            this.waveInProgress = !!this.script.nextWave(function (enemyType, position) {
+                if (_this.done) {
+                    return;
+                }
+                if (!position) {
+                    position = _this.actors.peekNextSpawnPoint();
+                }
+                var spawnCounter = 0;
+                var trySpawn = null;
+                trySpawn = function () {
+                    var rect = new Phaser.Rectangle(position.x - 16, position.y - 16, 32, 32);
+                    var occupants = KGAD.OccupiedGrid.getOccupantsInBounds(rect);
+                    if (occupants.length === 0) {
+                        console.log('[' + (++spawnCounter).toString() + '] spawn ' + enemyType + ' at (' + position.x + ', ' + position.y + ')');
+                        var enemy = _this.actors.createEnemy(enemyType);
+                        if (_this.skillChallengeMode) {
+                            enemy.health = 999999999;
+                        }
+                    }
+                    else {
+                        _this.game.time.events.add(250, function () {
+                            trySpawn();
+                        }, _this);
+                    }
+                };
+                trySpawn();
+            });
+            if (!this.waveInProgress) {
+                KGAD.AnimationHelper.createTextPopup("VICTORY!", 250, 7000, function () {
+                    _this.done = true;
+                });
+                return;
+            }
+            else {
+                this.game.time.events.add(500, function () {
+                    KGAD.AnimationHelper.createTextPopup("PROTECT YOUR KING");
+                    if (!_this.skillChallengeMode) {
+                        KGAD.AnimationHelper.createTextSubPopup("WAVE " + _this.script.waveIndex);
+                    }
+                }, this);
+            }
+        };
+        SimulationController.prototype.update = function () {
+            var _this = this;
+            _super.prototype.update.call(this);
+            var projectiles = this.projectiles;
+            projectiles.update();
+            var physics = this.game.physics.arcade;
+            var actors = this.actors;
+            physics.collide(projectiles.getActiveProjectiles(), this.actors.enemies, function (first, second) {
+                _this.handleProjectileCollision(first, second);
+            });
+            if (this.game.input.activePointer.isDown) {
+                var x = this.game.input.activePointer.worldX;
+                var y = this.game.input.activePointer.worldY;
+                this.handleMouseClicked(x, y);
+            }
+            if (this.waveInProgress) {
+                if (!this.script.waveInProgress && this.actors.enemies.length === 0) {
+                    console.log('wave complete!');
+                    this.waveInProgress = false;
+                    this.switchTo('PrepareDefenseController');
+                    return;
+                }
+            }
+            if (!this.hero.alive) {
+                this.game.camera.unfollow();
+                this.game.camera.focusOnXY(this.king.x, this.king.y);
+            }
+            if (!actors.king.alive && !this.skillChallengeMode) {
+                this.done = true;
+            }
+        };
+        SimulationController.prototype.destroy = function () {
+            _super.prototype.destroy.call(this);
+        };
+        /**
+         *  Determine what to do when the user clicks.
+         */
+        SimulationController.prototype.handleMouseClicked = function (x, y) {
+            if (this.skillChallengeMode) {
+                return;
+            }
+            var tile = this.map.fromPixels(new Phaser.Point(x, y));
+            var position = this.map.toPixels(tile).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
+            if (KGAD.OccupiedGrid.canOccupyInPixels(null, position.x, position.y)) {
+                this.actors.createMercenary(position.x, position.y, 'tank_merc');
+            }
+        };
+        /**
+         *  Handle the case that a projectile has collided with an enemy.
+         */
+        SimulationController.prototype.handleProjectileCollision = function (projectile, sprite) {
+            if (projectile.dead) {
+                return;
+            }
+            projectile.attachTo(sprite);
+            sprite.inflictDamage(projectile.power, projectile.firedBy);
+        };
+        return SimulationController;
+    })(KGAD.GameController);
+    KGAD.SimulationController = SimulationController;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var SkillChallengeController = (function (_super) {
+        __extends(SkillChallengeController, _super);
+        function SkillChallengeController() {
+            _super.apply(this, arguments);
+        }
+        SkillChallengeController.prototype.init = function (context) {
+            _super.prototype.init.call(this, context);
+        };
+        SkillChallengeController.prototype.preload = function () {
+            _super.prototype.preload.call(this);
+        };
+        SkillChallengeController.prototype.create = function () {
+            _super.prototype.create.call(this);
+            if (!this.skillChallengeMode) {
+                return;
+            }
+            this.failedSkillChallenge = false;
+            this.skillChallengeStartTime = this.game.time.now;
+            this.skillChallengeEndTime = this.skillChallengeStartTime + 180000; // 3mins
+            var timeLeft = this.skillChallengeEndTime - this.skillChallengeStartTime;
+            this.skillChallengeTimer = this.game.add.text(0, 0, 'Time left: ' + this.formatTime(timeLeft), {
+                font: '16px MedievalSharpBook',
+                align: 'left',
+                fill: '#FFFFFF',
+            });
+            this.skillChallengeTimer.fixedToCamera = true;
+        };
+        SkillChallengeController.prototype.update = function () {
+            _super.prototype.update.call(this);
+            if (!this.skillChallengeMode) {
+                return;
+            }
+            // If the player or king dies, they've failed the challenge.
+            if (!this.hero.alive || !this.king.alive) {
+                this.failedSkillChallenge = true;
+            }
+            // If the king isn't alive, show the player the "FAILURE" animation (if we haven't already).
+            if (!this.king.alive && !this.shownFailureAnimation) {
+                this.showFailureAnimation();
+            }
+            this.updateSkillTimer();
+        };
+        SkillChallengeController.prototype.destroy = function () {
+            _super.prototype.destroy.call(this);
+        };
+        /**
+         *  Updates the timer, which is counting down until the player wins.
+         */
+        SkillChallengeController.prototype.updateSkillTimer = function () {
+            this.skillChallengeStartTime += this.game.time.elapsedMS;
+            var timeLeftMs = this.skillChallengeEndTime - this.skillChallengeStartTime;
+            if (timeLeftMs <= 0) {
+                if (timeLeftMs <= 0 && !this.failedSkillChallenge) {
+                    this.showVictoryAnimation();
+                }
+            }
+            else if (!this.failedSkillChallenge) {
+                var timeLeft = this.formatTime(timeLeftMs);
+                this.skillChallengeTimer.text = 'Time left: ' + timeLeft;
+                if (timeLeftMs < 10000) {
+                    this.skillChallengeTimer.tint = 0xFF9999;
+                }
+                if (!this.actors.hero.alive || !this.actors.king.alive) {
+                    this.failedSkillChallenge = true;
+                }
+            }
+        };
+        /**
+         *  Show the user an animation indicating that he has won.
+         */
+        SkillChallengeController.prototype.showVictoryAnimation = function () {
+            var _this = this;
+            this.actors.hero.health = 999;
+            this.actors.king.health = 999;
+            var enemies = this.actors.enemies;
+            var killEnemy = null;
+            killEnemy = function () {
+                if (enemies.length > 0) {
+                    var enemy = enemies.pop();
+                    enemy.inflictDamage(9999999999, _this.actors.hero);
+                    _this.game.time.events.add(100, killEnemy, _this);
+                }
+                else {
+                    _this.game.time.events.add(30000, function () {
+                        _this.done = true;
+                    }, _this);
+                }
+            };
+            this.skillChallengeTimer.destroy();
+            this.skillChallengeTimer = null;
+            var greatJobText = this.game.add.text(0, 0, 'GREAT JOB!!!', {
+                font: '48px MedievalSharpBook',
+                align: 'center',
+                fill: '#FFFFFF'
+            });
+            greatJobText.x = this.game.camera.width / 2 - greatJobText.width / 2;
+            greatJobText.fixedToCamera = true;
+            var tween = this.game.add.tween(greatJobText).to({
+                tint: 0x33FF33
+            }, 250, Phaser.Easing.Cubic.InOut, true, 0, 999, true);
+            killEnemy();
+        };
+        /**
+         *  Show the user an animation indicating that the user has lost.
+         */
+        SkillChallengeController.prototype.showFailureAnimation = function () {
+            var _this = this;
+            this.shownFailureAnimation = true;
+            this.game.time.events.add(1000, function () {
+                var failure = _this.game.add.text(0, 0, 'YOU ARE A FAILURE', {
+                    font: '36px MedievalSharpBook',
+                    align: 'center',
+                    fill: '#FFFFFF'
+                });
+                var failureSprite = _this.game.make.sprite(_this.camera.width / 2 - failure.width / 2, _this.camera.height / 2 - failure.height / 2);
+                failureSprite.addChild(failure);
+                failureSprite.fixedToCamera = true;
+                failureSprite.alpha = 0;
+                failureSprite.anchor.setTo(0.5);
+                _this.game.world.add(failureSprite);
+                var tween = _this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
+                tween.start();
+                var fadeSprite = _this.game.make.sprite(0, 0, 'black');
+                fadeSprite.renderPriority = 9999;
+                fadeSprite.width = _this.camera.view.width;
+                fadeSprite.height = _this.camera.view.height;
+                fadeSprite.fixedToCamera = true;
+                fadeSprite.alpha = 0;
+                _this.game.world.add(fadeSprite);
+                var fadeTween = _this.game.add.tween(fadeSprite).to({ alpha: 1 }, 4000);
+                fadeTween.onComplete.addOnce(function () {
+                    _this.game.time.events.add(2000, function () {
+                        var finalTween = _this.game.add.tween(failureSprite).to({ alpha: 0 }, 1000);
+                        finalTween.onComplete.addOnce(function () {
+                            _this.done = true;
+                        });
+                        finalTween.start();
+                    }, _this);
+                });
+                fadeTween.start();
+                fadeSprite.bringToTop();
+                failureSprite.bringToTop();
+            }, this);
+        };
+        /**
+         *  Format a minutes/seconds timestamp as "M:SS".
+         */
+        SkillChallengeController.prototype.formatTime = function (timeMs) {
+            var date = new Date(timeMs);
+            return this.pad(date.getMinutes(), 1, '0') + ':' + this.pad(date.getSeconds(), 2, '0');
+        };
+        /**
+         *  Pad a string out to 'width' characters, filling in the blanks with 'z'.
+         */
+        SkillChallengeController.prototype.pad = function (n, width, z) {
+            z = z || '0';
+            n = n + '';
+            return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+        };
+        return SkillChallengeController;
+    })(KGAD.GameController);
+    KGAD.SkillChallengeController = SkillChallengeController;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
     var ScriptEngine = (function () {
         function ScriptEngine(level) {
             this.game = KGAD.Game.Instance;
@@ -3157,6 +3796,16 @@ var KGAD;
             this._waveIndex = 0;
             this._waveInProgress = false;
         }
+        Object.defineProperty(ScriptEngine.prototype, "waveIndex", {
+            /**
+             *  Gets the wave index.
+             */
+            get: function () {
+                return this._waveIndex;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(ScriptEngine.prototype, "waveInProgress", {
             /**
              *  Gets whether or not there is a wave currently operating.
@@ -3193,6 +3842,7 @@ var KGAD;
             }
             this._script = this.fillDefaults(script);
             this._waveIndex = 0;
+            console.log('script created for level ' + this._level);
         };
         /**
          *  Gets all enemy keys, which can be useful for loading sprite assets.
@@ -3217,6 +3867,9 @@ var KGAD;
             }
             this._waveInProgress = true;
             var wave = this._script.waves[this._waveIndex++];
+            if (!wave) {
+                return false;
+            }
             var timer = this.game.time.events;
             var availableEnemyTypes = [];
             var enemyTypeIdx = 0;
@@ -3457,16 +4110,14 @@ var KGAD;
          *  Does maintenance on the current state of the threat table.
          */
         ThreatTable.prototype.update = function () {
-            if (this._highestThreatTarget != null && !this._highestThreatTarget.alive) {
-                this.doTableMaintenance();
-            }
+            this.doTableMaintenance();
         };
         /**
          *  Perform maintenance on the table, such as removing targets who no longer exist.
          */
         ThreatTable.prototype.doTableMaintenance = function () {
             var removables = [];
-            var highestThreatSprite = null;
+            var highestThreatSprite = this._highestThreatTarget;
             var highestThreat = -99999;
             for (var i = 0, l = this._table.length; i < l; ++i) {
                 var entry = this._table[i];
@@ -3480,6 +4131,9 @@ var KGAD;
                         highestThreat = entry.threat;
                     }
                 }
+            }
+            if (removables.length === this._table.length) {
+                highestThreatSprite = null;
             }
             if (this._highestThreatTarget != highestThreatSprite) {
                 this.highestThreatChanged.dispatch(highestThreatSprite);
@@ -3712,6 +4366,7 @@ var KGAD;
          */
         MoveTween.prototype.stop = function (complete) {
             if (complete === void 0) { complete = true; }
+            this.currentDestination = null;
             this.timeToMove = 0;
             this.blockedTime = 0;
             if (complete) {
@@ -4462,6 +5117,18 @@ var KGAD;
         return PathMovementMachine;
     })();
     KGAD.PathMovementMachine = PathMovementMachine;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var GameContext = (function () {
+        function GameContext(props) {
+            $.extend(this, props);
+        }
+        return GameContext;
+    })();
+    KGAD.GameContext = GameContext;
 })(KGAD || (KGAD = {}));
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
@@ -5315,7 +5982,11 @@ var KGAD;
                 idx = indices[j];
                 OccupiedGrid._grid[idx] = sprite;
             }
+            OccupiedGrid.updateIndices(sprite, indices);
             return true;
+        };
+        OccupiedGrid.updateIndices = function (sprite, indices) {
+            sprite.gridIndices = indices;
         };
         /**
          *  Loop through each occupant.
@@ -5335,19 +6006,6 @@ var KGAD;
                         processed.push(occupant);
                     }
                 }
-            }
-        };
-        /**
-         *  Update the occupied grid based on the positions of the sprites.
-         */
-        OccupiedGrid.update = function (sprite) {
-            if (sprite == null) {
-                OccupiedGrid.forEach(function (sprite, idx) {
-                    OccupiedGrid.add(sprite);
-                });
-            }
-            else {
-                OccupiedGrid.add(sprite);
             }
         };
         /**
@@ -5501,7 +6159,6 @@ var KGAD;
                 path = astar.search(this.graph, start, end);
             }
             if (path.length === 0) {
-                console.error('no path between ' + from.toString() + ' and ' + to.toString());
             }
             var result = [];
             for (var i = 0, l = path.length; i < l; ++i) {
@@ -5663,6 +6320,40 @@ var KGAD;
         return Arrays;
     })();
     KGAD.Arrays = Arrays;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    /**
+     *  Static helper utilities for input.
+     */
+    var Input = (function () {
+        function Input() {
+        }
+        /**
+         *  Disables player input on the given Hero object.
+         */
+        Input.disablePlayerInput = function (hero) {
+            var doNothing = function () {
+            };
+            hero['moving'] = false;
+            hero['disableInput'] = true;
+            hero.action = KGAD.Actions.Standing;
+            hero.weapon.cancelCharging();
+            hero.updateAnimation();
+            return hero;
+        };
+        /**
+         *  Enables player input on the given Hero object.
+         */
+        Input.enablePlayerInput = function (hero) {
+            hero['disableInput'] = false;
+            return hero;
+        };
+        return Input;
+    })();
+    KGAD.Input = Input;
 })(KGAD || (KGAD = {}));
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.

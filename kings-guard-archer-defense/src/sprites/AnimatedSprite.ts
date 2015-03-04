@@ -20,15 +20,20 @@ module KGAD {
         protected pathFindingMover: PathMovementMachine;
         protected sequentialBlocks: number;
         protected _moving: boolean;
+        protected _pathing: boolean;
         private added: boolean;
         private _hasHealthBar: boolean;
         private healthBar: HealthBar;
 
         public blocked: Phaser.Signal;
         public movementTweenCompleted: Phaser.Signal;
+        public pathfindingComplete: Phaser.Signal;
 
         constructor(game: Phaser.Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
+
+            this.autoCull = false;
+            this.checkWorldBounds = false;
 
             this.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
             //this.texture.baseTexture.mipmap = true;
@@ -40,14 +45,17 @@ module KGAD {
             this.canOccupy = true;
             this.isBlocked = false;
             this.sequentialBlocks = 0;
+            this._pathing = false;
 
             this.blocked = new Phaser.Signal();
             this.movementTweenCompleted = new Phaser.Signal();
+            this.pathfindingComplete = new Phaser.Signal();
 
             this.pathFindingMover = new PathMovementMachine(this);
             this.movementSpeed = 100;
             this.fixedToCamera = false;
             this.renderPriority = 0;
+            this.visible = false;
         }
 
         init(...args: any[]): void {
@@ -96,6 +104,10 @@ module KGAD {
                 return 1;
             }
 
+            else if (this.action === Actions.Firing) {
+                return 0;
+            }
+
             return 2;
         }
 
@@ -115,6 +127,7 @@ module KGAD {
                 }
 
                 this.added = true;
+                this.visible = true;
             }
 
             this.lastPosition = this.position.clone();
@@ -140,9 +153,14 @@ module KGAD {
         /**
          *  Face towards another sprite.
          */
-        public face(sprite: AnimatedSprite) {
-            var angle = this.game.physics.arcade.angleBetween(this.position, sprite.position);
-            this.direction = MovementHelper.getDirectionFromAngle(angle);
+        public face(sprite: AnimatedSprite|Directions) {
+            if (typeof sprite === 'number') {
+                this.direction = <Directions>sprite;
+            }
+            else {
+                var angle = this.game.physics.arcade.angleBetween(this.position, (<AnimatedSprite>sprite).position);
+                this.direction = MovementHelper.getDirectionFromAngle(angle);
+            }
             this.updateAnimation();
         }
 
@@ -203,7 +221,7 @@ module KGAD {
         }
 
         /**
-         *
+         *  Shows the sprite's death animation, if it has one.
          */
         protected showDeathAnimation(onDeathAnimationComplete?: () => any) {
             this.stopMovementTween();
@@ -285,13 +303,6 @@ module KGAD {
 
             var timeToMove = (distance / this.movementSpeed) * 1000.0;
 
-            /*this.movementTween = this.game.add.tween(this)
-                .to(position, timeToMove, Phaser.Easing.Linear.None, false, 0);
-            this.movementTween.onComplete.addOnce(() => {
-                this.movementTweenCompleted.dispatch();
-            });
-            this.movementTween.start();*/
-
             this.movementTween = new MoveTween(this.game, this);
             this.movementTween.moveTo(position.x, position.y);
             this.movementTween.completed.addOnce(() => {
@@ -304,6 +315,35 @@ module KGAD {
             return true;
         }
 
+        /**
+         *  Find a path to and begin moving to the target destination.
+         */
+        public pathfindTo(x: number|Phaser.Point, y?: number, onComplete?: () => any): boolean {
+            this.stopMovementTween(false);
+
+            var current: Phaser.Point = this.map.fromPixels(this.x, this.y);
+            var target: Phaser.Point = this.map.fromPixels(x, y);
+
+            var points: Phaser.Point[] = this.map.findPath(current, target);
+            if (!points) {
+                return false;
+            }
+
+            var gridPath: Path<Phaser.Rectangle> = OccupiedGrid.convertToGridPath(new Path(points));
+            this.pathFindingMover.currentPath = gridPath;
+
+            if (onComplete) {
+                this.pathfindingComplete.addOnce(onComplete);
+            }
+
+            this._pathing = true;
+
+            return true;
+        }
+
+        /**
+         *  Update the internal understanding of our node position.
+         */
         protected updateNodePosition() {
             this.lastNode = this.node;
             this.node = new Phaser.Point(Math.floor(this.x / OccupiedGrid.NODE_SIZE), Math.floor(this.y / OccupiedGrid.NODE_SIZE));
@@ -333,6 +373,10 @@ module KGAD {
 
             var rect = path.next();
             if (rect == null) {
+                if (this._pathing) {
+                    this.pathfindingComplete.dispatch();
+                    this._pathing = false;
+                }
                 this.unsetCurrentPath();
                 return false;
             }
@@ -352,6 +396,7 @@ module KGAD {
          *  Called before the 'update' step.
          */
         public preUpdate(): void {
+            //(<any>this)._cache[4] = 0;
             var map = Game.CurrentMap;
 
             if (!this.alive || !this.exists || this.health <= 0) {
@@ -359,15 +404,19 @@ module KGAD {
                 return;
             }
 
-            if (this.movementTween != null) {
+            if (this.pathFindingMover.currentPath && this.pathFindingMover.currentPath.length > 0 && !this.isMoveTweening()) {
+                this.moveToNextDestination();
+            }
+
+            if (this.movementTween != null && this.movementTween.isRunning) {
                 this.movementTween.update();
             }
             else {
-                if (this.canOccupyTiles) {
+                if (this.canOccupyTiles && this instanceof Hero) {
                     var occupants: AnimatedSprite[] = [];
-                    if (!OccupiedGrid.canOccupyInPixels(this, this.position, null, occupants)) {
+                    if (!OccupiedGrid.add(this, occupants)) {
                         ++this.sequentialBlocks;
-                        this.position = this.lastPosition;
+                        this.position = this.lastPosition.clone();
                         if (this.body) {
                             this.body.velocity.setTo(0);
                         }
@@ -387,8 +436,6 @@ module KGAD {
                         // If we still can't occupy it, resolve collision.
                         //this.resolveCollision(occupants);
                     }
-
-                    OccupiedGrid.update(this);
                 }
             }
 
@@ -405,6 +452,12 @@ module KGAD {
             super.update();
 
             this.healthBar.update();
+        }
+
+        postUpdate(): void {
+            (<any>this)._cache[7] = 0;
+
+            super.postUpdate();
         }
 
         render(): void {

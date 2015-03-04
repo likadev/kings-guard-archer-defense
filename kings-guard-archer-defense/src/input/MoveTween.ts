@@ -36,6 +36,7 @@ module KGAD {
          *  Stop the movement tween.
          */
         public stop(complete: boolean = true) {
+            this.currentDestination = null;
             this.timeToMove = 0;
             this.blockedTime = 0;
 

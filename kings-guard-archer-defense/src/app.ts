@@ -98,6 +98,13 @@ module KGAD {
         }
 
         /**
+         *  Gets the current game context.
+         */
+        public static get Context(): GameContext {
+            return this.Simulation == null ? null : this.Simulation.context;
+        }
+
+        /**
          *  Gets the projectile manager.
          */
         public static get Projectiles(): ProjectileManager {

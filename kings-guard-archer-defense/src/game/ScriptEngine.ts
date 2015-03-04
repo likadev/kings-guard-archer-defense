@@ -22,6 +22,13 @@ module KGAD {
         }
 
         /**
+         *  Gets the wave index. 
+         */
+        public get waveIndex(): number {
+            return this._waveIndex;
+        }
+
+        /**
          *  Gets whether or not there is a wave currently operating.
          */
         public get waveInProgress(): boolean {
@@ -59,6 +66,8 @@ module KGAD {
 
             this._script = this.fillDefaults(script);
             this._waveIndex = 0;
+
+            console.log('script created for level ' + this._level);
         }
 
         /**
@@ -86,6 +95,9 @@ module KGAD {
 
             this._waveInProgress = true;
             var wave: Wave = this._script.waves[this._waveIndex++];
+            if (!wave) {
+                return false;
+            }
             var timer = this.game.time.events;
 
             var availableEnemyTypes: string[] = [];

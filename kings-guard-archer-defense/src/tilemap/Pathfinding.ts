@@ -34,7 +34,7 @@ module KGAD {
             }
 
             if (path.length === 0) {
-                console.error('no path between ' + from.toString() + ' and ' + to.toString());
+                //console.error('no path between ' + from.toString() + ' and ' + to.toString());
             }
 
             var result: Phaser.Point[] = [];
