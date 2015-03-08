@@ -24,12 +24,14 @@ module KGAD {
         public weapon: Weapon;
         public pad: Phaser.SinglePad;
         public padIndex: number;
+        public gold: number;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
 
             this.health = 5;
             this._disableInput = false;
+            this.gold = 10;
         }
 
         private addGamepadButtons(): boolean {
@@ -235,6 +237,12 @@ module KGAD {
                     this.fireKeyUp();
                 });
             });
+        }
+        
+        addToWorld(): void {
+            super.addToWorld();
+
+            this.hasShadow = true;
         }
 
         private addMovementHandler(input: InputButton, direction: Directions) {
@@ -612,7 +620,9 @@ module KGAD {
 
             if (this.health <= 0) {
                 if (this.weapon.chargeSprite) {
+                    this.weapon.cancelCharging();
                     this.weapon.chargeSprite.visible = false;
+                    this.weapon.chargeSprite.kill();
                 }
             }
 

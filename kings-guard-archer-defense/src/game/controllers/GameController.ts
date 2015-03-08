@@ -68,11 +68,11 @@ module KGAD {
         }
 
         public get game(): Game {
-            return this.context['game'];
+            return Game.Instance;
         }
 
         public get map(): GameMap {
-            return this.context['map'];
+            return Game.CurrentMap;
         }
 
         public get world(): Phaser.World {
@@ -129,7 +129,7 @@ module KGAD {
             }
         }
 
-        protected switchTo(name: string) {
+        public static switchTo(name: string) {
             if (GameController._controllers.containsKey(name)) {
                 var controller = GameController._controllers.getValue(name);
 
@@ -142,11 +142,18 @@ module KGAD {
             for (var i = 0, l = children.length; i < l; ++i) {
                 (<any>children[i]).parent = controller;
             }
-            controller.preload();
 
             GameController._controllers.setValue(name, controller);
 
             return controller;
+        }
+
+        public static preload() {
+            GameController._controllers.forEach((key, value) => {
+                value.preload();
+            });
+
+            Game.Instance.load.start();
         }
 
         public static destroyControllers(destroy: boolean = true) {

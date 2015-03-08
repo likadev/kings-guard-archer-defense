@@ -9,13 +9,19 @@ module KGAD {
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
 
-            this.health = 35;
+            this.health = 25;
         }
 
         public init(...args: any[]) {
             super.init(args);
 
             this.hasHealthBar = true;
+        }
+
+        addToWorld() {
+            super.addToWorld();
+
+            this.hasShadow = true;
         }
 
         public get weight(): number {

@@ -15,11 +15,13 @@ module KGAD {
         private offsetPosition: Phaser.Point;
         private originalDirection: Directions;
         protected _deadSpriteKey: string;
+        public goThroughWalls: boolean;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
             this.dead = false;
             this.canOccupy = false;
+            this.goThroughWalls = false;
         }
 
         init(...args: any[]) {

@@ -12,6 +12,9 @@ module KGAD {
         private timeToMove: number;
         private distance: number;
         private blockedTime: number;
+        private centering: boolean;
+        private isComplete: boolean;
+        private tweening: boolean;
 
         public blocked: Phaser.Signal;
 
@@ -21,6 +24,8 @@ module KGAD {
             this.currentDestination = null;
             this.map = Game.CurrentMap;
             this.blockedTime = 0;
+            this.isComplete = true;
+            this.tweening = false;
             this.blocked = new Phaser.Signal();
             this.completed = new Phaser.Signal();
         }
@@ -29,7 +34,7 @@ module KGAD {
          *  Gets whether or not the movement is running.
          */
         public get isRunning(): boolean {
-            return this.timeToMove > 0;
+            return !this.isComplete;
         }
 
         /**
@@ -39,6 +44,7 @@ module KGAD {
             this.currentDestination = null;
             this.timeToMove = 0;
             this.blockedTime = 0;
+            this.isComplete = true;
 
             if (complete) {
                 this.completed.dispatch();
@@ -78,13 +84,14 @@ module KGAD {
             this.direction = MovementHelper.getDirectionFromAngle(this.angle);
             this.distance = Phaser.Point.distance(this.sprite.position, this.currentDestination);
             this.timeToMove = (this.distance / this.sprite.movementSpeed) * 1000.0;
+            this.isComplete = this.timeToMove === 0;
         }
 
         /**
          *  Move towards the goal.
          */
         private step(): void {
-            if (this.currentDestination == null) {
+            if (this.currentDestination == null || this.isComplete || this.tweening) {
                 return;
             }
 
@@ -96,8 +103,8 @@ module KGAD {
                 completeMovement = true;
             }
 
-            var xMovement = this.direction === Directions.Left ? -1 : this.direction === Directions.Right ? 1 : 0;
-            var yMovement = this.direction === Directions.Up ? -1 : this.direction === Directions.Down ? 1 : 0;
+            var xMovement = Math.cos(this.angle);
+            var yMovement = Math.sin(this.angle);
 
             var oldX = this.sprite.x;
             var oldY = this.sprite.y;
@@ -121,9 +128,50 @@ module KGAD {
             }
 
             if (completeMovement) {
-                this.currentDestination = null;
-                this.completed.dispatch();
+                if (Math.abs(oldX - x) > 1 || Math.abs(oldY - y) > 1) {
+                    this.sprite.position.set(oldX, oldY);
+                    OccupiedGrid.add(this.sprite);
+
+                    if (this.centering) {
+                        var distance = Phaser.Point.distance(this.sprite.position, this.currentDestination);
+                        var speed = (this.distance / (this.sprite.movementSpeed * 4)) * 1000.0;
+                        var tween = this.game.add.tween(this.sprite).to({ x: this.currentDestination.x, y: this.currentDestination.y },
+                            this.sprite.movementSpeed * 2, Phaser.Easing.Linear.None, false);
+                        this.tweening = true;
+                        tween.onComplete.addOnce(() => {
+                            this.tweening = false;
+                            OccupiedGrid.add(this.sprite);
+                            this.onMovementCompleted();
+                        });
+                        tween.start();
+                    }
+                    else {
+                        this.centerOnTile();
+                    }
+                }
+                else {
+                    this.onMovementCompleted();
+                }
             }
+        }
+
+        /**
+         *  Move to the center of a tile.
+         */
+        private centerOnTile() {
+            this.generateData();
+            this.centering = true;
+            console.log('centering... distance=' + this.distance + ', time=' + this.timeToMove);
+        }
+
+        /**
+         *  Called internally.
+         */
+        private onMovementCompleted() {
+            this.isComplete = true;
+            this.centering = false;
+            this.currentDestination = null;
+            this.completed.dispatch();
         }
 
         /**
@@ -134,7 +182,16 @@ module KGAD {
                 this.blockedTime = this.game.time.now;
             }
             else {
-                if (this.game.time.now - this.blockedTime >= MoveTween.BLOCKED_THRESHOLD) {
+                var beingBlockedByEnemy = false;
+                for (var i = 0, l = byWho.length; i < l; ++i) {
+                    if (byWho[i].alliance !== this.sprite.alliance) {
+                        beingBlockedByEnemy = true;
+                        break;
+                    }
+                }
+
+                if (beingBlockedByEnemy || this.game.time.now - this.blockedTime >= MoveTween.BLOCKED_THRESHOLD) {
+                    console.log(this.sprite.key + ' is blocked by ' + (byWho[0] || { key: 'a wall' }).key + ', stopping tween');
                     this.stop(false);
                     this.blocked.dispatch(byWho);
                 }

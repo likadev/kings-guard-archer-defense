@@ -10,6 +10,7 @@ module KGAD {
         public projectiles: ProjectileManager;
         private waveInProgress: boolean;
         public context: GameContext;
+        private nextRun: number;
 
         private skillChallengeMode: boolean;
         private createKing: boolean;
@@ -57,6 +58,8 @@ module KGAD {
                 this.actors.createHero();
             }
 
+            GameController.destroyControllers(false);
+
             this.context = new GameContext({
                 actors: this.actors,
                 game: Game.Instance,
@@ -68,18 +71,19 @@ module KGAD {
                 gameComplete: this.done
             });
 
-            GameController.destroyControllers(false);
-
             var simulationChildren = [new SkillChallengeController()];
             var firstController = GameController.createController<SimulationController>('SimulationController', <any>SimulationController, <any>simulationChildren);
             GameController.createController('PrepareDefenseController', PrepareDefenseController);
 
-            GameController.current = firstController;
+            GameController.preload();
+
+            GameController.switchTo('SimulationController');
+            this.nextRun = 250;
         }
 
         update(): void {
             if (this.done || GameController.current == null) {
-                this.switchStates(States.Boot, true, false);
+                this.switchStates(States.Demo, true, false);
                 return;
             }
 
@@ -106,7 +110,15 @@ module KGAD {
                 return;
             }
 
+            this.nextRun -= this.game.time.physicsElapsedMS;
+            if (this.nextRun > 0) {
+                return;
+            }
+
+            this.nextRun = 250;
+
             // TODO: we should avoid doing this so often
+            // TODO: maybe use quad tree to sort?
             for (var i = 0; i < len; ++i) {
                 var child1 = children[i];
                 if (child1 instanceof Phaser.Sprite) {
@@ -124,10 +136,12 @@ module KGAD {
                                 children[j] = child1;
                                 break;
                             }
-                            else if (renderPriority1 === renderPriority2 && y2 < y1) {
-                                children[i] = child2;
-                                children[j] = child1;
-                                break;
+                            else if (renderPriority1 === renderPriority2) {
+                                if (child1 instanceof Phaser.Sprite && child2 instanceof Phaser.Sprite && y2 < y1) {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }
                             }
                         }
                     }

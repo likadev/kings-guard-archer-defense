@@ -20,23 +20,22 @@ module KGAD {
             this._mercenaries = [];
             this._spawnPoints = [];
 
-            var checkThreat: Function = null;
-            checkThreat = () => {
-                if (this.exists && this.game != null) {
+            var loopEvent: Phaser.TimerEvent = null;
+            loopEvent = this.game.time.events.loop(1000,() => {
+                if (this.exists && this.game != null && this.alive) {
                     this.forEachMercenary((merc) => {
-                        this.forEachEnemy((enemy) => {
-                            merc.checkThreatAgainst(enemy);
+                        if (merc.alive) {
+                            this.forEachEnemy((enemy) => {
+                                if (enemy.alive) {
+                                    merc.checkThreatAgainst(enemy);
+                                }
+                            }, this);
+                        }
                         }, this);
-                    }, this);
-
-                    this.game.time.events.add(1000,() => {
-                        checkThreat();
-                    }, this);
                 }
-            };
-
-            this.game.time.events.add(1000,() => {
-                checkThreat();
+                else {
+                    this.game.time.events.remove(loopEvent);
+                }
             }, this);
         }
 
@@ -78,7 +77,7 @@ module KGAD {
         /**
          *  Creates and initializes a sprite.
          */
-        public create(x: number, y: number, key: string, frame?: any, exists?: boolean): any {
+        public create(x: number, y: number, key: string, frame?: any, exists?: boolean, addToWorld: boolean = true): any {
             //var created = super.create(x, y, key, frame, exists);
             var activator = new AniamtedSpriteActivator(this.classType);
             var created: any = activator.getNew(this.game, x, y, key, frame);
@@ -93,7 +92,7 @@ module KGAD {
                 created.preload();
             }
 
-            if (typeof created.addToWorld === 'function') {
+            if (addToWorld && typeof created.addToWorld === 'function') {
                 created.addToWorld();
             }
 
@@ -165,9 +164,25 @@ module KGAD {
         /**
          *  Creates a mercenary and adds it to the list of mercenaries.
          */
-        public createMercenary(x: number, y: number, key: string): Mercenary {
+        public createMercenary(x: number, y: number, mercType: MercenaryType): Mercenary {
             this.classType = Mercenary;
-            var merc = this.create(x, y, key);
+            var merc: Mercenary = <Mercenary>this.create(x, y, mercType.key, null, null, false);
+
+            merc.health = mercType.baseHealth;
+            merc.canMove = mercType.canMove;
+            merc.canPerch = mercType.canPerch;
+            merc.isRanged = mercType.ranged;
+            merc.engageRange = mercType.engageRange;
+            merc.weapon.key = mercType.weapon.key;
+            merc.weapon.range = mercType.weapon.range;
+            merc.weapon.cooldown = mercType.weapon.cooldown;
+            merc.weapon.frontSwing = mercType.weapon.frontSwing;
+            merc.weapon.backSwing = mercType.weapon.backSwing;
+            merc.weapon.power = mercType.weapon.basePower;
+            merc.weapon.projectileSpeed = mercType.weapon.projectileSpeed;
+
+            merc.addToWorld();
+            
             this._mercenaries.push(merc);
             return merc;
         }

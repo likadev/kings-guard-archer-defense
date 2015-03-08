@@ -27,6 +27,19 @@ module KGAD {
             return this.activeProjectiles;
         }
 
+        public getActiveProjectilesThatCantPassThroughWalls(): Array<FiredProjectile> {
+            var firedProjectiles = [];
+
+            for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
+                var active = this.activeProjectiles[i];
+                if (!active.goThroughWalls) {
+                    firedProjectiles.push(active);
+                }
+            }
+
+            return firedProjectiles;
+        }
+
         /**
          *  Gets all groups associated with this generator.
          */
@@ -108,14 +121,14 @@ module KGAD {
         /**
          *  Fire a projectile.
          */
-        public fire(x: number, y: number, who: AnimatedSprite, weapon: Weapon, chargePower: number, onKill?: () => any): void {
+        public fire(x: number, y: number, who: AnimatedSprite, weapon: Weapon, chargePower: number, angle?: number, goThroughWalls: boolean = false, onKill?: () => any): void {
             var game = Game.Instance;
             var map = Game.CurrentMap;
             var direction = who.direction;
             var p: Phaser.Point = MovementHelper.getPointFromDirection(direction);
             var projectileStartPosition = Phaser.Point.add(who.position, p);
             var group = this.getGroupByType(weapon.key);
-            var rotation = MovementHelper.getAngleFromDirection(direction);
+            var rotation = angle || MovementHelper.getAngleFromDirection(direction);
 
             var sprite: FiredProjectile = group.create(x, y, weapon.key);
             if (weapon.deadProjectileKey) {
@@ -125,6 +138,7 @@ module KGAD {
             sprite.rotation = rotation;
             sprite.direction = direction;
             sprite.renderPriority = -1;
+            sprite.goThroughWalls = goThroughWalls;
 
             sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
@@ -143,7 +157,7 @@ module KGAD {
             var tile = CollisionHelper.raycastFirstTile(ray, 4, pixelPoint);
             var aliveTime = weapon.aliveTime;
             
-            if (tile) {
+            if (!goThroughWalls && tile) {
                 aliveTime = (Phaser.Point.distance(sprite.position, pixelPoint) / sprite.speed) * 1000;
                 sprite.hitWallPoint = pixelPoint;
             }
@@ -160,7 +174,7 @@ module KGAD {
         update(): void {
             var game = Game.Instance;
 
-            game.physics.arcade.collide(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => { this.onProjectileHitWall(proj); });
+            game.physics.arcade.collide(this.getActiveProjectilesThatCantPassThroughWalls(), Game.CurrentMap.collisionLayer,(proj) => { this.onProjectileHitWall(proj); });
             /*game.physics.arcade.overlap(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => {
                 this.onProjectileHitWall(proj);
             });*/

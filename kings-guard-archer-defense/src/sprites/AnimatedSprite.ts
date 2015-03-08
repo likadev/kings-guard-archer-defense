@@ -21,6 +21,7 @@ module KGAD {
         protected sequentialBlocks: number;
         protected _moving: boolean;
         protected _pathing: boolean;
+        protected shadowSprite: Phaser.Sprite;
         private added: boolean;
         private _hasHealthBar: boolean;
         private healthBar: HealthBar;
@@ -70,6 +71,22 @@ module KGAD {
             this.healthBar.visible = false;
         }
 
+        public get hasShadow(): boolean {
+            return this.shadowSprite != null;
+        }
+
+        public set hasShadow(val: boolean) {
+            if (val && this.shadowSprite == null) {
+                this.shadowSprite = this.game.add.sprite(this.x, this.y + this.height / 2.75, 'shadow');
+                this.shadowSprite.anchor.set(0.5, 0);
+                (<any>this.shadowSprite).renderPriority = -5;
+            }
+            else if (!val && this.shadowSprite != null) {
+                this.shadowSprite.kill();
+                this.shadowSprite = null;
+            }
+        }
+
         public get hasHealthBar(): boolean {
             return this._hasHealthBar;
         }
@@ -117,7 +134,7 @@ module KGAD {
 
         public preload(): void {}
 
-        public addToWorld(): void {
+        public addToWorld(force: boolean = false): void {
             if (!this.added) {
                 this.default_animation = AnimationHelper.getCurrentAnimation(this);
                 var animation = this.animations.getAnimation(this.default_animation);
@@ -136,17 +153,37 @@ module KGAD {
 
             var addCallback: () => any = null;
             addCallback = () => {
-                if (!OccupiedGrid.canOccupyInPixels(this, this.position)) {
+                if (!force && !OccupiedGrid.canOccupyInPixels(this, this.position)) {
                     console.log('spawn point is occupied; waiting for it to free up');
                     this.game.time.events.add(100,() => { addCallback(); }, this);
                 }
                 else {
                     OccupiedGrid.add(this);
 
-                    this.game.world.add(this);
+                    var beforePosition = this.position.clone();
+                    this.game.world.add(this, true);
+                    var afterPosition = this.position.clone();
+
+                    if (!beforePosition.equals(afterPosition)) {
+                        console.error("POSITION CHANGED: Before: " + beforePosition.toString() + ", After: " + afterPosition.toString());
+                        this.position = beforePosition;
+                    }
+
+                    if (!(this instanceof Hero || this instanceof King)) {
+                        this.alpha = 0;
+                    }
+
+                    this.game.add.tween(this).to({ alpha: 1 }, 250, Phaser.Easing.Linear.None, true, 0);
+
+                    // TODO: Why is this necessary? What's messing with the enemy's position after spawn?
+                    var resetPosition: Phaser.Point = this.position.clone();
+                    this.game.time.events.add(1,() => {
+                        this.position = resetPosition;
+                    }, this);
                 }
             };
 
+            (<any>this)._cache[7] = 0;
             addCallback();
         }
 
@@ -213,6 +250,10 @@ module KGAD {
                 OccupiedGrid.remove(this);
 
                 this.healthBar.destroy();
+                if (this.shadowSprite) {
+                    this.shadowSprite.kill();
+                    this.hasShadow = false;
+                }
 
                 this.showDeathAnimation();
             }
@@ -318,13 +359,13 @@ module KGAD {
         /**
          *  Find a path to and begin moving to the target destination.
          */
-        public pathfindTo(x: number|Phaser.Point, y?: number, onComplete?: () => any): boolean {
+        public pathfindTo(x: number|Phaser.Point, y?: number, onComplete?: () => any, customNodes: CustomPathfindingGridNode[] = []): boolean {
             this.stopMovementTween(false);
 
             var current: Phaser.Point = this.map.fromPixels(this.x, this.y);
             var target: Phaser.Point = this.map.fromPixels(x, y);
 
-            var points: Phaser.Point[] = this.map.findPath(current, target);
+            var points: Phaser.Point[] = this.map.findPath(current, target, false, customNodes);
             if (!points) {
                 return false;
             }
@@ -353,7 +394,9 @@ module KGAD {
          *  Un-sets the current path, allowing a new one to be created.
          */
         protected unsetCurrentPath(): any {
-            this.pathFindingMover.currentPath = null;
+            if (this.pathFindingMover) {
+                this.pathFindingMover.currentPath = null;
+            }
 
             return null;
         }
@@ -412,7 +455,7 @@ module KGAD {
                 this.movementTween.update();
             }
             else {
-                if (this.canOccupyTiles && this instanceof Hero) {
+                if (this.canOccupyTiles && (this instanceof Hero)) {
                     var occupants: AnimatedSprite[] = [];
                     if (!OccupiedGrid.add(this, occupants)) {
                         ++this.sequentialBlocks;
@@ -451,6 +494,9 @@ module KGAD {
         update(): void {
             super.update();
 
+            if (this.shadowSprite) {
+                this.shadowSprite.position.set(this.x, this.y + this.height / 3);
+            }
             this.healthBar.update();
         }
 
@@ -461,7 +507,7 @@ module KGAD {
         }
 
         render(): void {
-            
+            this.pathFindingMover.render();
         }
     }
 }

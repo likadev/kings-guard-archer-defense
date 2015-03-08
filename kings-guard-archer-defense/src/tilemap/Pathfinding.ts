@@ -18,13 +18,13 @@ module KGAD {
         /**
          *  Attempts to find the shortest path from one point to another.
          */
-        public findPath(from: Phaser.Point, to: Phaser.Point, fullSearch: boolean = false): Phaser.Point[] {
+        public findPath(from: Phaser.Point, to: Phaser.Point, fullSearch: boolean = false, customWeights: CustomPathfindingGridNode[] = []): Phaser.Point[] {
             this.createGrid();
             var start = this.graph.grid[from.x][from.y];
             var end = this.graph.grid[to.x][to.y];
 
             if (!fullSearch) {
-                var miniGrid = this.createMiniGrid(from, to);
+                var miniGrid = this.createMiniGrid(from, to, customWeights);
 
                 var path: GridNode[] = astar.search(miniGrid, start, end);
             }
@@ -73,7 +73,7 @@ module KGAD {
             return this.graph.grid[x][y];
         }
 
-        private createMiniGrid(from: Phaser.Point, to: Phaser.Point): Graph {
+        private createMiniGrid(from: Phaser.Point, to: Phaser.Point, custom: CustomPathfindingGridNode[] = []): Graph {
             var minX = Math.min(from.x, to.x);
             var minY = Math.min(from.y, to.y);
             var maxX = Math.max(from.x, to.x);
@@ -90,6 +90,13 @@ module KGAD {
                 grid[j] = [];
                 for (var y = minY, k = 0; y < maxY; ++y, ++k) {
                     grid[j][k] = this.graph.grid[j][k].weight;
+                }
+            }
+
+            for (var i = 0, l = custom.length; i < l; ++i) {
+                var node = custom[i];
+                if (node && node.x >= 0 && node.y >= 0 && node.x < width && node.y < height) {
+                    grid[node.x][node.y] = node.weight;
                 }
             }
 

@@ -20,6 +20,7 @@ module KGAD {
         private debugStateName: string = "idle";
         private rerouting: boolean;
         private unblockTries = 0;
+        public goldValue: number;
 
         constructor(game: Game, x: number, y: number, key?: any, frame?: any) {
             super(game, x, y, key, frame);
@@ -27,6 +28,7 @@ module KGAD {
             this.movementSpeed = 75;
             this.rerouting = false;
             this.health = 3;
+            this.goldValue = 1;
         }
 
         init(...args: any[]) {
@@ -53,17 +55,13 @@ module KGAD {
             this.threatTable = new ThreatTable(this);
             this.threatTable.highestThreatChanged.add((who) => { this.onHighestThreatTargetChanged(who); });
 
+            this.hasShadow = true;
+
             this.blocked.add((blockedBy) => {
                 this.onBlocked(blockedBy);
             });
 
             super.addToWorld();
-
-            // TODO: Why is this necessary? What's messing with the enemy's position after spawn?
-            var resetPosition: Phaser.Point = this.position.clone();
-            this.game.time.events.add(1,() => {
-                this.position = resetPosition;
-            }, this);
         }
 
         public get alliance(): Alliance {
@@ -124,9 +122,16 @@ module KGAD {
             else {
                 this.health = 0;
                 delete this.body;
+
+                Game.Hero.gold += this.goldValue;
             }
 
             if (this.health <= 0) {
+                if (this.shadowSprite) {
+                    this.shadowSprite.kill();
+                    this.hasShadow = false;
+                }
+
                 if (!OccupiedGrid.remove(this)) {
                     console.error("Enemy was not removed!");
                 }
@@ -182,11 +187,23 @@ module KGAD {
             this.threatTable.update();
             this.pathFindingMover.update();
 
-            if (this.currentTarget == null) {
+            while (this.currentTarget == null) {
                 this.currentTarget = this.threatTable.getHighestThreatTarget();
-                if (this.currentTarget == null) {
-                    this.debugStateName = 'no_target';
-                    return;
+                if (this.currentTarget != null && !this.canReach(this.currentTarget)) {
+                    if (!(this.currentTarget instanceof King)) {
+                        this.threatTable.removeThreatTarget(this.currentTarget);
+                    }
+                    else {
+                        break;
+                    }
+                }
+                else {
+                    if (this.currentTarget == null) {
+                        this.debugStateName = 'no_target';
+                        return;
+                    }
+
+                    break;
                 }
             }
 
@@ -275,8 +292,25 @@ module KGAD {
          *  Called when the highest threat target has changed.
          */
         private onHighestThreatTargetChanged(sprite: AnimatedSprite) {
-            this.currentTarget = sprite;
-            this.unsetCurrentPath();
+            if (sprite == null || this.canReach(sprite)) {
+                this.currentTarget = sprite;
+                this.unsetCurrentPath();
+            }
+        }
+
+        /**
+         *  Check if we can reach the current target.
+         */
+        private canReach(sprite: AnimatedSprite): boolean {
+            if (sprite instanceof Mercenary) {
+                if (sprite.isPerched) {
+                    return false;
+                }
+            }
+
+            var from = this.map.fromPixels(this.position);
+            var to = this.map.fromPixels(sprite.position);
+            return this.map.findPath(from, to, true) != null;
         }
 
         /**

@@ -3,8 +3,13 @@
 
 module KGAD {
     export class PrepareDefenseController extends GameController {
-        preload(): void {
-            super.preload();
+        private purchaseMenu: PurchaseMenu;
+
+        constructor(children?: GameController[], parent?: GameController) {
+            super(children, parent);
+
+            this.purchaseMenu = new PurchaseMenu([], this);
+            this.children.push(this.purchaseMenu);
         }
 
         init(context: GameContext): void {
@@ -17,11 +22,15 @@ module KGAD {
             Input.disablePlayerInput(this.hero);
         }
 
+        preload(): void {
+            super.preload();
+        }
+
         create(): void {
             super.create();
 
             AnimationHelper.createTextPopup("PREPARE YOUR DEFENSE");
-            AnimationHelper.createTextSubPopup("THIS IS ONLY A PLACEHOLDER FOR NOW");
+            //AnimationHelper.createTextSubPopup("THIS IS ONLY A PLACEHOLDER FOR NOW");
 
             var spawnPoint = this.map.toPixels(this.map.heroSpawnPoint).add(16, 16);
             var invisSprite = this.game.add.sprite(this.hero.x, this.hero.y);
@@ -35,9 +44,9 @@ module KGAD {
             });
             moveToCenter.start();
 
-            this.game.time.events.add(5000,() => {
+            /*this.game.time.events.add(5000,() => {
                 this.switchTo('SimulationController');
-            }, this);
+            }, this);*/
         }
 
         update(): void {
@@ -57,6 +66,10 @@ module KGAD {
             }
             else if (this.game.input.keyboard.isDown(Key.DOWN)) {
                 this.game.camera.y += 125 * this.game.time.physicsElapsed;
+            }
+
+            if (this.purchaseMenu.ready) {
+                GameController.switchTo('SimulationController');
             }
         }
 

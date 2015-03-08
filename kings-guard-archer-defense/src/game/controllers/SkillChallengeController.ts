@@ -8,13 +8,13 @@ module KGAD {
         protected skillChallengeEndTime: number;
         protected skillChallengeTimer: Phaser.Text;
         protected shownFailureAnimation: boolean;
+        protected shownVictoryAnimation: boolean;
 
         init(context: GameContext) {
             super.init(context);
-        }
 
-        preload() {
-            super.preload();
+            this.shownFailureAnimation = false;
+            this.shownVictoryAnimation = false;
         }
 
         create() {
@@ -34,6 +34,8 @@ module KGAD {
                 fill: '#FFFFFF',
             });
             this.skillChallengeTimer.fixedToCamera = true;
+
+            this.hero.weapon.power = 1000;
         }
 
         update() {
@@ -56,10 +58,6 @@ module KGAD {
             this.updateSkillTimer();
         }
 
-        destroy() {
-            super.destroy();
-        }
-
         /**
          *  Updates the timer, which is counting down until the player wins.
          */
@@ -67,7 +65,7 @@ module KGAD {
             this.skillChallengeStartTime += this.game.time.elapsedMS;
             var timeLeftMs = this.skillChallengeEndTime - this.skillChallengeStartTime;
             if (timeLeftMs <= 0) {
-                if (timeLeftMs <= 0 && !this.failedSkillChallenge) {
+                if (timeLeftMs <= 0 && !this.failedSkillChallenge && !this.shownVictoryAnimation) {
                     this.showVictoryAnimation();
                 }
             }
@@ -75,7 +73,7 @@ module KGAD {
                 var timeLeft = this.formatTime(timeLeftMs);
                 this.skillChallengeTimer.text = 'Time left: ' + timeLeft;
                 if (timeLeftMs < 10000) {
-                    this.skillChallengeTimer.tint = 0xFF9999;
+                    this.skillChallengeTimer.tint = 0xFF7777;
                 }
 
                 if (!this.actors.hero.alive || !this.actors.king.alive) {
@@ -88,6 +86,7 @@ module KGAD {
          *  Show the user an animation indicating that he has won.
          */
         private showVictoryAnimation() {
+            this.shownVictoryAnimation = true;
             this.actors.hero.health = 999;
             this.actors.king.health = 999;
 
@@ -102,7 +101,7 @@ module KGAD {
                     this.game.time.events.add(100, killEnemy, this);
                 }
                 else {
-                    this.game.time.events.add(30000,() => {
+                    this.game.time.events.add(15000,() => {
                         this.done = true;
                     }, this);
                 }
@@ -143,6 +142,8 @@ module KGAD {
                 failureSprite.fixedToCamera = true;
                 failureSprite.alpha = 0;
                 failureSprite.anchor.setTo(0.5);
+                failureSprite['renderPriority'] = 9999;
+                failureSprite.bringToTop();
                 this.game.world.add(failureSprite);
 
                 var tween: Phaser.Tween = this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
@@ -160,7 +161,9 @@ module KGAD {
                     this.game.time.events.add(2000,() => {
                         var finalTween = this.game.add.tween(failureSprite).to({ alpha: 0 }, 1000);
                         finalTween.onComplete.addOnce(() => {
-                            this.done = true;
+                            this.game.time.events.add(1500,() => {
+                                this.done = true;
+                            }, this);
                         });
                         finalTween.start();
                     }, this);

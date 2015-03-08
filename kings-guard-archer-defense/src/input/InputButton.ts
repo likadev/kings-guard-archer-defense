@@ -8,5 +8,7 @@ module KGAD {
         onUp: Phaser.Signal;
 
         isDown: boolean;
+
+        isUp: boolean;
     }
 }

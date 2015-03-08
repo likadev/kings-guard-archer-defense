@@ -21,6 +21,10 @@ module KGAD {
 
         public static get GameSimulation(): string { return 'GameSimulation'; }
 
+        public static get Demo(): string { return 'Demo'; }
+
+        public static get Info(): string { return "Info"; }
+
         constructor() {
             States.instance = this;
         }
@@ -40,6 +44,8 @@ module KGAD {
             game.state.add(States.PreGameLoading, PreGameLoadingState, false);
             game.state.add(States.SkillChallengeIntro, SkillChallengeIntroState, false);
             game.state.add(States.GameSimulation, GameSimulationState, false);
+            game.state.add(States.Demo, DemoState, false);
+            game.state.add(States.Info, InfoState, false);
         }
 
         /**

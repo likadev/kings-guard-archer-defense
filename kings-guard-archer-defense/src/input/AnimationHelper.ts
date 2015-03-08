@@ -68,7 +68,7 @@ module KGAD {
                 y: y + 1,
                 fixedToCamera: true,
                 style: {
-                    font: '37px MedievalSharpBook',
+                    font: '36px MedievalSharpBook',
                     fill: '#000000'
                 }
             };
@@ -89,20 +89,21 @@ module KGAD {
             headerText.alpha = 0;
 
             shadowText.preUpdate = function() {
-                shadowText.x = headerText.x - 2;
-                shadowText.y = headerText.y - 2;
-                shadowText2.x = headerText.x + 2;
-                shadowText2.y = headerText.y + 2;
+                shadowText.x = headerText.x - 1;
+                shadowText.y = headerText.y - 1;
+                shadowText2.x = headerText.x + 1;
+                shadowText2.y = headerText.y + 1;
                 shadowText.alpha = headerText.alpha;
                 shadowText2.alpha = headerText.alpha;
             };
 
             game.world.add(shadowText);
+            game.world.add(shadowText2);
             game.world.add(headerText);
 
             var fadeIn = game.add.tween(headerText).to({ y: 70, alpha: 1 }, fadeInDelay, Phaser.Easing.Linear.None, false, 0);
+            var flash = game.add.tween(headerText).to({ tint: 0xFF00FF }, 100, <any>Phaser.Easing.Cubic.InOut, true, 0, 0, true);
             fadeIn.onComplete.addOnce(() => {
-                var flash = game.add.tween(headerText).to({ tint: 0xFF00FF }, 20, <any>Phaser.Easing.Cubic.InOut, true, 0, 3, true);
                 var fadeOut = game.add.tween(headerText).to({ y: 75, alpha: 0 }, fadeInDelay, Phaser.Easing.Linear.None, false, fadeOutDelay);
                 if (onComplete) {
                     fadeOut.onComplete.addOnce(onComplete);

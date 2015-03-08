@@ -55,6 +55,7 @@ var KGAD;
             this.buttonIndex = 0;
         };
         MainMenuState.prototype.preload = function () {
+            this.game.load.json('mercenaries', 'assets/data/mercenaries.json');
             this.game.load.spritesheet('play_button', 'assets/textures/misc/play_button.png', 128, 64, 3);
             this.game.load.spritesheet('skill_challenge_button', 'assets/textures/misc/skill_challenge_button.png', 128, 64, 3);
             this.script = new KGAD.ScriptEngine();
@@ -263,6 +264,7 @@ var KGAD;
         __extends(PreGameLoadingState, _super);
         function PreGameLoadingState() {
             _super.call(this);
+            this.firstTime = true;
         }
         PreGameLoadingState.prototype.init = function (args) {
             this.map = args[0];
@@ -301,6 +303,19 @@ var KGAD;
                 };
                 KGAD.AnimationLoader.load(name, callback, isHero ? KGAD.Hero : isEnemy ? KGAD.Enemy : isKing ? KGAD.King : isMerc ? KGAD.Mercenary : KGAD.AnimatedSprite);
             }
+            var mercenaryJson = this.game.cache.getJSON('mercenaries');
+            if (mercenaryJson) {
+                var mercenaries = mercenaryJson.mercenaries;
+                console.log(mercenaries);
+                for (var i = 0, l = mercenaries.length; i < l; ++i) {
+                    var merc = mercenaries[i];
+                    if (merc.key) {
+                        KGAD.AnimationLoader.load(merc.key, function (s) {
+                        }, KGAD.Mercenary);
+                        this.game.cache.addJSON("mercenary_" + merc.key, null, merc);
+                    }
+                }
+            }
             KGAD.AnimationLoader.load('charge', function (s) {
                 _this.chargeSprite = s;
             }, KGAD.BowCharge, 'assets/textures/weapons/');
@@ -309,6 +324,14 @@ var KGAD;
             this.game.load.image('black', 'assets/textures/misc/black.png');
             this.game.load.image('healthbar', 'assets/textures/misc/healthbar.png');
             this.game.load.image('healthbar_frame', 'assets/textures/misc/healthbar_frame.png');
+            this.game.load.image('parchment', 'assets/textures/misc/parchment.png');
+            this.game.load.image('gold_coin', 'assets/textures/misc/gold_coin.png');
+            this.game.load.image('gold_bar', 'assets/textures/misc/gold_bar.png');
+            //this.game.load.image('merc_frame', 'assets/textures/misc/merc_frame.png');
+            //this.game.load.image('ready', 'assets/textures/misc/ready_button.png');
+            this.game.load.image('shadow', 'assets/textures/misc/shadow.png');
+            new KGAD.Button('ready_button', 0, 0, 96, 48);
+            new KGAD.Button('merc_frame', 0, 0, 36, 36);
         };
         PreGameLoadingState.prototype.create = function () {
         };
@@ -316,6 +339,10 @@ var KGAD;
             var states = KGAD.States.Instance;
             if (KGAD.AnimationLoader.done && this.ready) {
                 var nextState = this.skillChallengeMode ? KGAD.States.SkillChallengeIntro : KGAD.States.GameSimulation;
+                if (!this.skillChallengeMode && this.firstTime) {
+                    nextState = KGAD.States.Info;
+                    this.firstTime = false;
+                }
                 states.switchTo(nextState, true, false, this.map, this.script);
             }
         };
@@ -369,6 +396,7 @@ var KGAD;
                 this.actors.createKing();
                 this.actors.createHero();
             }
+            KGAD.GameController.destroyControllers(false);
             this.context = new KGAD.GameContext({
                 actors: this.actors,
                 game: KGAD.Game.Instance,
@@ -379,15 +407,16 @@ var KGAD;
                 skillChallengeMode: this.skillChallengeMode,
                 gameComplete: this.done
             });
-            KGAD.GameController.destroyControllers(false);
             var simulationChildren = [new KGAD.SkillChallengeController()];
             var firstController = KGAD.GameController.createController('SimulationController', KGAD.SimulationController, simulationChildren);
             KGAD.GameController.createController('PrepareDefenseController', KGAD.PrepareDefenseController);
-            KGAD.GameController.current = firstController;
+            KGAD.GameController.preload();
+            KGAD.GameController.switchTo('SimulationController');
+            this.nextRun = 250;
         };
         GameSimulationState.prototype.update = function () {
             if (this.done || KGAD.GameController.current == null) {
-                this.switchStates(KGAD.States.Boot, true, false);
+                this.switchStates(KGAD.States.Demo, true, false);
                 return;
             }
             this.sortSprites();
@@ -407,6 +436,11 @@ var KGAD;
             if (this.done) {
                 return;
             }
+            this.nextRun -= this.game.time.physicsElapsedMS;
+            if (this.nextRun > 0) {
+                return;
+            }
+            this.nextRun = 250;
             for (var i = 0; i < len; ++i) {
                 var child1 = children[i];
                 if (child1 instanceof Phaser.Sprite) {
@@ -422,10 +456,12 @@ var KGAD;
                                 children[j] = child1;
                                 break;
                             }
-                            else if (renderPriority1 === renderPriority2 && y2 < y1) {
-                                children[i] = child2;
-                                children[j] = child1;
-                                break;
+                            else if (renderPriority1 === renderPriority2) {
+                                if (child1 instanceof Phaser.Sprite && child2 instanceof Phaser.Sprite && y2 < y1) {
+                                    children[i] = child2;
+                                    children[j] = child1;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -501,6 +537,20 @@ var KGAD;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(States, "Demo", {
+            get: function () {
+                return 'Demo';
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(States, "Info", {
+            get: function () {
+                return "Info";
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(States, "Instance", {
             get: function () {
                 return this.instance;
@@ -518,6 +568,8 @@ var KGAD;
             game.state.add(States.PreGameLoading, KGAD.PreGameLoadingState, false);
             game.state.add(States.SkillChallengeIntro, KGAD.SkillChallengeIntroState, false);
             game.state.add(States.GameSimulation, KGAD.GameSimulationState, false);
+            game.state.add(States.Demo, KGAD.DemoState, false);
+            game.state.add(States.Info, KGAD.InfoState, false);
         };
         /**
          * Switches to the given state.
@@ -774,21 +826,22 @@ var KGAD;
             this._enemies = [];
             this._mercenaries = [];
             this._spawnPoints = [];
-            var checkThreat = null;
-            checkThreat = function () {
-                if (_this.exists && _this.game != null) {
+            var loopEvent = null;
+            loopEvent = this.game.time.events.loop(1000, function () {
+                if (_this.exists && _this.game != null && _this.alive) {
                     _this.forEachMercenary(function (merc) {
-                        _this.forEachEnemy(function (enemy) {
-                            merc.checkThreatAgainst(enemy);
-                        }, _this);
-                    }, _this);
-                    _this.game.time.events.add(1000, function () {
-                        checkThreat();
+                        if (merc.alive) {
+                            _this.forEachEnemy(function (enemy) {
+                                if (enemy.alive) {
+                                    merc.checkThreatAgainst(enemy);
+                                }
+                            }, _this);
+                        }
                     }, _this);
                 }
-            };
-            this.game.time.events.add(1000, function () {
-                checkThreat();
+                else {
+                    _this.game.time.events.remove(loopEvent);
+                }
             }, this);
         }
         Object.defineProperty(Actors.prototype, "map", {
@@ -844,7 +897,8 @@ var KGAD;
         /**
          *  Creates and initializes a sprite.
          */
-        Actors.prototype.create = function (x, y, key, frame, exists) {
+        Actors.prototype.create = function (x, y, key, frame, exists, addToWorld) {
+            if (addToWorld === void 0) { addToWorld = true; }
             //var created = super.create(x, y, key, frame, exists);
             var activator = new KGAD.AniamtedSpriteActivator(this.classType);
             var created = activator.getNew(this.game, x, y, key, frame);
@@ -855,7 +909,7 @@ var KGAD;
             if (typeof created.preload === 'function') {
                 created.preload();
             }
-            if (typeof created.addToWorld === 'function') {
+            if (addToWorld && typeof created.addToWorld === 'function') {
                 created.addToWorld();
             }
             //this.children.push(created);
@@ -913,9 +967,22 @@ var KGAD;
         /**
          *  Creates a mercenary and adds it to the list of mercenaries.
          */
-        Actors.prototype.createMercenary = function (x, y, key) {
+        Actors.prototype.createMercenary = function (x, y, mercType) {
             this.classType = KGAD.Mercenary;
-            var merc = this.create(x, y, key);
+            var merc = this.create(x, y, mercType.key, null, null, false);
+            merc.health = mercType.baseHealth;
+            merc.canMove = mercType.canMove;
+            merc.canPerch = mercType.canPerch;
+            merc.isRanged = mercType.ranged;
+            merc.engageRange = mercType.engageRange;
+            merc.weapon.key = mercType.weapon.key;
+            merc.weapon.range = mercType.weapon.range;
+            merc.weapon.cooldown = mercType.weapon.cooldown;
+            merc.weapon.frontSwing = mercType.weapon.frontSwing;
+            merc.weapon.backSwing = mercType.weapon.backSwing;
+            merc.weapon.power = mercType.weapon.basePower;
+            merc.weapon.projectileSpeed = mercType.weapon.projectileSpeed;
+            merc.addToWorld();
             this._mercenaries.push(merc);
             return merc;
         };
@@ -1233,7 +1300,7 @@ var KGAD;
                 y: y + 1,
                 fixedToCamera: true,
                 style: {
-                    font: '37px MedievalSharpBook',
+                    font: '36px MedievalSharpBook',
                     fill: '#000000'
                 }
             };
@@ -1251,18 +1318,19 @@ var KGAD;
             });
             headerText.alpha = 0;
             shadowText.preUpdate = function () {
-                shadowText.x = headerText.x - 2;
-                shadowText.y = headerText.y - 2;
-                shadowText2.x = headerText.x + 2;
-                shadowText2.y = headerText.y + 2;
+                shadowText.x = headerText.x - 1;
+                shadowText.y = headerText.y - 1;
+                shadowText2.x = headerText.x + 1;
+                shadowText2.y = headerText.y + 1;
                 shadowText.alpha = headerText.alpha;
                 shadowText2.alpha = headerText.alpha;
             };
             game.world.add(shadowText);
+            game.world.add(shadowText2);
             game.world.add(headerText);
             var fadeIn = game.add.tween(headerText).to({ y: 70, alpha: 1 }, fadeInDelay, Phaser.Easing.Linear.None, false, 0);
+            var flash = game.add.tween(headerText).to({ tint: 0xFF00FF }, 100, Phaser.Easing.Cubic.InOut, true, 0, 0, true);
             fadeIn.onComplete.addOnce(function () {
-                var flash = game.add.tween(headerText).to({ tint: 0xFF00FF }, 20, Phaser.Easing.Cubic.InOut, true, 0, 3, true);
                 var fadeOut = game.add.tween(headerText).to({ y: 75, alpha: 0 }, fadeInDelay, Phaser.Easing.Linear.None, false, fadeOutDelay);
                 if (onComplete) {
                     fadeOut.onComplete.addOnce(onComplete);
@@ -1361,6 +1429,24 @@ var KGAD;
             this.healthBar.init(this.health);
             this.healthBar.visible = false;
         };
+        Object.defineProperty(AnimatedSprite.prototype, "hasShadow", {
+            get: function () {
+                return this.shadowSprite != null;
+            },
+            set: function (val) {
+                if (val && this.shadowSprite == null) {
+                    this.shadowSprite = this.game.add.sprite(this.x, this.y + this.height / 2.75, 'shadow');
+                    this.shadowSprite.anchor.set(0.5, 0);
+                    this.shadowSprite.renderPriority = -5;
+                }
+                else if (!val && this.shadowSprite != null) {
+                    this.shadowSprite.kill();
+                    this.shadowSprite = null;
+                }
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(AnimatedSprite.prototype, "hasHealthBar", {
             get: function () {
                 return this._hasHealthBar;
@@ -1418,8 +1504,9 @@ var KGAD;
         });
         AnimatedSprite.prototype.preload = function () {
         };
-        AnimatedSprite.prototype.addToWorld = function () {
+        AnimatedSprite.prototype.addToWorld = function (force) {
             var _this = this;
+            if (force === void 0) { force = false; }
             if (!this.added) {
                 this.default_animation = KGAD.AnimationHelper.getCurrentAnimation(this);
                 var animation = this.animations.getAnimation(this.default_animation);
@@ -1434,7 +1521,7 @@ var KGAD;
             this.node = new Phaser.Point(Math.floor(this.x / KGAD.OccupiedGrid.NODE_SIZE), Math.floor(this.y / KGAD.OccupiedGrid.NODE_SIZE));
             var addCallback = null;
             addCallback = function () {
-                if (!KGAD.OccupiedGrid.canOccupyInPixels(_this, _this.position)) {
+                if (!force && !KGAD.OccupiedGrid.canOccupyInPixels(_this, _this.position)) {
                     console.log('spawn point is occupied; waiting for it to free up');
                     _this.game.time.events.add(100, function () {
                         addCallback();
@@ -1442,9 +1529,25 @@ var KGAD;
                 }
                 else {
                     KGAD.OccupiedGrid.add(_this);
-                    _this.game.world.add(_this);
+                    var beforePosition = _this.position.clone();
+                    _this.game.world.add(_this, true);
+                    var afterPosition = _this.position.clone();
+                    if (!beforePosition.equals(afterPosition)) {
+                        console.error("POSITION CHANGED: Before: " + beforePosition.toString() + ", After: " + afterPosition.toString());
+                        _this.position = beforePosition;
+                    }
+                    if (!(_this instanceof KGAD.Hero || _this instanceof KGAD.King)) {
+                        _this.alpha = 0;
+                    }
+                    _this.game.add.tween(_this).to({ alpha: 1 }, 250, Phaser.Easing.Linear.None, true, 0);
+                    // TODO: Why is this necessary? What's messing with the enemy's position after spawn?
+                    var resetPosition = _this.position.clone();
+                    _this.game.time.events.add(1, function () {
+                        _this.position = resetPosition;
+                    }, _this);
                 }
             };
+            this._cache[7] = 0;
             addCallback();
         };
         /**
@@ -1502,6 +1605,10 @@ var KGAD;
             if (this.health <= 0) {
                 KGAD.OccupiedGrid.remove(this);
                 this.healthBar.destroy();
+                if (this.shadowSprite) {
+                    this.shadowSprite.kill();
+                    this.hasShadow = false;
+                }
                 this.showDeathAnimation();
             }
             return this;
@@ -1588,11 +1695,12 @@ var KGAD;
         /**
          *  Find a path to and begin moving to the target destination.
          */
-        AnimatedSprite.prototype.pathfindTo = function (x, y, onComplete) {
+        AnimatedSprite.prototype.pathfindTo = function (x, y, onComplete, customNodes) {
+            if (customNodes === void 0) { customNodes = []; }
             this.stopMovementTween(false);
             var current = this.map.fromPixels(this.x, this.y);
             var target = this.map.fromPixels(x, y);
-            var points = this.map.findPath(current, target);
+            var points = this.map.findPath(current, target, false, customNodes);
             if (!points) {
                 return false;
             }
@@ -1615,7 +1723,9 @@ var KGAD;
          *  Un-sets the current path, allowing a new one to be created.
          */
         AnimatedSprite.prototype.unsetCurrentPath = function () {
-            this.pathFindingMover.currentPath = null;
+            if (this.pathFindingMover) {
+                this.pathFindingMover.currentPath = null;
+            }
             return null;
         };
         /**
@@ -1663,7 +1773,7 @@ var KGAD;
                 this.movementTween.update();
             }
             else {
-                if (this.canOccupyTiles && this instanceof KGAD.Hero) {
+                if (this.canOccupyTiles && (this instanceof KGAD.Hero)) {
                     var occupants = [];
                     if (!KGAD.OccupiedGrid.add(this, occupants)) {
                         ++this.sequentialBlocks;
@@ -1693,6 +1803,9 @@ var KGAD;
          */
         AnimatedSprite.prototype.update = function () {
             _super.prototype.update.call(this);
+            if (this.shadowSprite) {
+                this.shadowSprite.position.set(this.x, this.y + this.height / 3);
+            }
             this.healthBar.update();
         };
         AnimatedSprite.prototype.postUpdate = function () {
@@ -1700,6 +1813,7 @@ var KGAD;
             _super.prototype.postUpdate.call(this);
         };
         AnimatedSprite.prototype.render = function () {
+            this.pathFindingMover.render();
         };
         return AnimatedSprite;
     })(Phaser.Sprite);
@@ -1889,6 +2003,7 @@ var KGAD;
             this.movementSpeed = 75;
             this.rerouting = false;
             this.health = 3;
+            this.goldValue = 1;
         }
         Enemy.prototype.init = function () {
             var args = [];
@@ -1915,15 +2030,11 @@ var KGAD;
             this.threatTable.highestThreatChanged.add(function (who) {
                 _this.onHighestThreatTargetChanged(who);
             });
+            this.hasShadow = true;
             this.blocked.add(function (blockedBy) {
                 _this.onBlocked(blockedBy);
             });
             _super.prototype.addToWorld.call(this);
-            // TODO: Why is this necessary? What's messing with the enemy's position after spawn?
-            var resetPosition = this.position.clone();
-            this.game.time.events.add(1, function () {
-                _this.position = resetPosition;
-            }, this);
         };
         Object.defineProperty(Enemy.prototype, "alliance", {
             get: function () {
@@ -1982,8 +2093,13 @@ var KGAD;
             else {
                 this.health = 0;
                 delete this.body;
+                KGAD.Game.Hero.gold += this.goldValue;
             }
             if (this.health <= 0) {
+                if (this.shadowSprite) {
+                    this.shadowSprite.kill();
+                    this.hasShadow = false;
+                }
                 if (!KGAD.OccupiedGrid.remove(this)) {
                     console.error("Enemy was not removed!");
                 }
@@ -2027,11 +2143,22 @@ var KGAD;
             }
             this.threatTable.update();
             this.pathFindingMover.update();
-            if (this.currentTarget == null) {
+            while (this.currentTarget == null) {
                 this.currentTarget = this.threatTable.getHighestThreatTarget();
-                if (this.currentTarget == null) {
-                    this.debugStateName = 'no_target';
-                    return;
+                if (this.currentTarget != null && !this.canReach(this.currentTarget)) {
+                    if (!(this.currentTarget instanceof KGAD.King)) {
+                        this.threatTable.removeThreatTarget(this.currentTarget);
+                    }
+                    else {
+                        break;
+                    }
+                }
+                else {
+                    if (this.currentTarget == null) {
+                        this.debugStateName = 'no_target';
+                        return;
+                    }
+                    break;
                 }
             }
             if (this.weapon.isBackSwinging() || this.rerouting || this.isMoveTweening()) {
@@ -2103,8 +2230,23 @@ var KGAD;
          *  Called when the highest threat target has changed.
          */
         Enemy.prototype.onHighestThreatTargetChanged = function (sprite) {
-            this.currentTarget = sprite;
-            this.unsetCurrentPath();
+            if (sprite == null || this.canReach(sprite)) {
+                this.currentTarget = sprite;
+                this.unsetCurrentPath();
+            }
+        };
+        /**
+         *  Check if we can reach the current target.
+         */
+        Enemy.prototype.canReach = function (sprite) {
+            if (sprite instanceof KGAD.Mercenary) {
+                if (sprite.isPerched) {
+                    return false;
+                }
+            }
+            var from = this.map.fromPixels(this.position);
+            var to = this.map.fromPixels(sprite.position);
+            return this.map.findPath(from, to, true) != null;
         };
         /**
          *  Checks if this enemy is in range of a sprite.
@@ -2145,6 +2287,7 @@ var KGAD;
             _super.call(this, game, x, y, key, frame);
             this.dead = false;
             this.canOccupy = false;
+            this.goThroughWalls = false;
         }
         FiredProjectile.prototype.init = function () {
             var args = [];
@@ -2276,6 +2419,7 @@ var KGAD;
             _super.call(this, game, x, y, key, frame);
             this.health = 5;
             this._disableInput = false;
+            this.gold = 10;
         }
         Hero.prototype.addGamepadButtons = function () {
             var gamepad = this.game.input.gamepad;
@@ -2448,6 +2592,10 @@ var KGAD;
                     _this.fireKeyUp();
                 });
             });
+        };
+        Hero.prototype.addToWorld = function () {
+            _super.prototype.addToWorld.call(this);
+            this.hasShadow = true;
         };
         Hero.prototype.addMovementHandler = function (input, direction) {
             var _this = this;
@@ -2772,7 +2920,9 @@ var KGAD;
             _super.prototype.inflictDamage.call(this, amount, source);
             if (this.health <= 0) {
                 if (this.weapon.chargeSprite) {
+                    this.weapon.cancelCharging();
                     this.weapon.chargeSprite.visible = false;
+                    this.weapon.chargeSprite.kill();
                 }
             }
             return this;
@@ -2837,7 +2987,7 @@ var KGAD;
         __extends(King, _super);
         function King(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
-            this.health = 35;
+            this.health = 25;
         }
         King.prototype.init = function () {
             var args = [];
@@ -2846,6 +2996,10 @@ var KGAD;
             }
             _super.prototype.init.call(this, args);
             this.hasHealthBar = true;
+        };
+        King.prototype.addToWorld = function () {
+            _super.prototype.addToWorld.call(this);
+            this.hasShadow = true;
         };
         Object.defineProperty(King.prototype, "weight", {
             get: function () {
@@ -2869,7 +3023,7 @@ var KGAD;
         function Mercenary(game, x, y, key, frame) {
             _super.call(this, game, x, y, key, frame);
             this.movementSpeed = 50;
-            this.health = 3;
+            this.health = 1;
             this.engageRange = 128;
         }
         Mercenary.prototype.init = function () {
@@ -2880,7 +3034,7 @@ var KGAD;
             }
             _super.prototype.init.call(this, args);
             this.hasHealthBar = true;
-            this.weapon = new KGAD.Weapon(this.game, 'short_sword', {
+            this.weapon = new KGAD.Weapon(this.game, 'basic_arrow', {
                 cooldown: 1500,
                 range: 36,
                 backSwing: 500,
@@ -2893,15 +3047,34 @@ var KGAD;
             KGAD.AnimationLoader.addAnimationToSprite(this, this.key);
             this.blocked.add(this.onBlocked, this);
         };
-        Mercenary.prototype.addToWorld = function () {
-            _super.prototype.addToWorld.call(this);
+        Mercenary.prototype.addToWorld = function (force) {
+            if (force === void 0) { force = false; }
+            if (this.canPerch) {
+                force = true;
+            }
+            _super.prototype.addToWorld.call(this, force);
+            this.hasShadow = true;
             this.startingPoint = this.map.toPixels(this.map.fromPixels(this.x, this.y)).add(16, 16);
             this.startingDirection = this.direction;
+            KGAD.OccupiedGrid.add(this);
         };
         Mercenary.prototype.onBlocked = function (occupants) {
+            var hasEnemies = false;
+            var tilePositions = [];
+            for (var i = 0, l = occupants.length; i < l; ++i) {
+                var occupant = occupants[i];
+                tilePositions.push(this.map.fromPixels(occupant.position));
+                if (occupant.alliance !== this.alliance) {
+                    this.threatTable.addThreat(occupant, 5);
+                    hasEnemies = true;
+                }
+            }
             this.unsetCurrentPath();
             if (this.currentTarget == null) {
-                this.goHome();
+                this.currentTarget = this.threatTable.getHighestThreatTarget();
+                if (this.currentTarget == null) {
+                    this.goHome(tilePositions);
+                }
             }
         };
         Mercenary.prototype.checkThreatAgainst = function (enemy) {
@@ -2955,6 +3128,10 @@ var KGAD;
                 delete this.body;
             }
             if (this.health <= 0) {
+                if (this.shadowSprite) {
+                    this.shadowSprite.kill();
+                    this.hasShadow = false;
+                }
                 if (!KGAD.OccupiedGrid.remove(this)) {
                     console.error("Mercenary was not removed!");
                 }
@@ -2970,7 +3147,12 @@ var KGAD;
                 };
                 this.action = KGAD.Actions.Dying;
                 this.direction = 2 /* Down */;
-                this.updateAnimation(onAnimationComplete);
+                _super.prototype.showDeathAnimation.call(this);
+                this.game.time.events.add(1000, function () {
+                    if (_this.alive) {
+                        onAnimationComplete();
+                    }
+                }, this);
             }
             if (this.damageTween != null && this.damageTween.isRunning) {
                 this.damageTween.stop(false);
@@ -2999,7 +3181,7 @@ var KGAD;
                         }
                     }
                 }
-                else {
+                else if (this.canMove) {
                     this.moveTowardsTarget();
                 }
             }
@@ -3016,15 +3198,36 @@ var KGAD;
                 this.goHome();
             }
         };
-        Mercenary.prototype.goHome = function () {
+        Mercenary.prototype.centerOnTile = function (onComplete) {
+            var centerX = Math.floor(this.x / KGAD.OccupiedGrid.NODE_SIZE) * KGAD.OccupiedGrid.NODE_SIZE + KGAD.OccupiedGrid.NODE_SIZE;
+            var centerY = Math.floor(this.y / KGAD.OccupiedGrid.NODE_SIZE) * KGAD.OccupiedGrid.NODE_SIZE + KGAD.OccupiedGrid.NODE_SIZE;
+            var distance = Phaser.Point.distance(this.position, new Phaser.Point(centerX, centerY));
+            var timeToMove = (distance / this.movementSpeed) * 1000.0;
+            var angle = this.game.physics.arcade.angleBetween(this.position, new Phaser.Point(centerX, centerY));
+            this.face(KGAD.MovementHelper.getDirectionFromAngle(angle));
+            var tween = this.game.add.tween(this).to({ x: centerX, y: centerY }, timeToMove, Phaser.Easing.Linear.None, false);
+            tween.onComplete.addOnce(function () {
+                if (onComplete) {
+                    onComplete();
+                }
+            });
+            tween.start();
+        };
+        Mercenary.prototype.goHome = function (avoid) {
             var _this = this;
+            if (avoid === void 0) { avoid = []; }
             var homePoint = this.startingPoint;
             var onComplete = function () {
                 _this.action = KGAD.Actions.Standing;
                 _this.face(_this.startingDirection);
             };
-            if (!this.pathfindTo(homePoint, null, onComplete)) {
-                onComplete();
+            var customPositions = [];
+            for (var i = 0, l = avoid.length; i < l; ++i) {
+                var avoidPos = avoid[i];
+                customPositions.push(new KGAD.CustomPathfindingGridNode(avoidPos.x, avoidPos.y, 0));
+            }
+            if (!this.pathfindTo(homePoint, null, onComplete, customPositions)) {
+                this.centerOnTile(onComplete);
             }
         };
         Mercenary.prototype.moveTowardsTarget = function () {
@@ -3050,7 +3253,14 @@ var KGAD;
             var distance = Phaser.Point.distance(this, this.currentTarget);
             if (distance <= this.weapon.range) {
                 this.weapon.lastFireTime = this.game.time.now;
-                this.currentTarget.inflictDamage(this.weapon.power, this);
+                if (this.isRanged) {
+                    var angle = this.game.physics.arcade.angleBetween(this, this.currentTarget);
+                    var projectiles = KGAD.Game.Projectiles;
+                    projectiles.fire(this.x, this.y, this, this.weapon, 0, angle, this.canPerch);
+                }
+                else {
+                    this.currentTarget.inflictDamage(this.weapon.power, this);
+                }
             }
         };
         return Mercenary;
@@ -3074,6 +3284,16 @@ var KGAD;
          */
         ProjectileManager.prototype.getActiveProjectiles = function () {
             return this.activeProjectiles;
+        };
+        ProjectileManager.prototype.getActiveProjectilesThatCantPassThroughWalls = function () {
+            var firedProjectiles = [];
+            for (var i = 0, l = this.activeProjectiles.length; i < l; ++i) {
+                var active = this.activeProjectiles[i];
+                if (!active.goThroughWalls) {
+                    firedProjectiles.push(active);
+                }
+            }
+            return firedProjectiles;
         };
         /**
          *  Gets all groups associated with this generator.
@@ -3142,15 +3362,16 @@ var KGAD;
         /**
          *  Fire a projectile.
          */
-        ProjectileManager.prototype.fire = function (x, y, who, weapon, chargePower, onKill) {
+        ProjectileManager.prototype.fire = function (x, y, who, weapon, chargePower, angle, goThroughWalls, onKill) {
             var _this = this;
+            if (goThroughWalls === void 0) { goThroughWalls = false; }
             var game = KGAD.Game.Instance;
             var map = KGAD.Game.CurrentMap;
             var direction = who.direction;
             var p = KGAD.MovementHelper.getPointFromDirection(direction);
             var projectileStartPosition = Phaser.Point.add(who.position, p);
             var group = this.getGroupByType(weapon.key);
-            var rotation = KGAD.MovementHelper.getAngleFromDirection(direction);
+            var rotation = angle || KGAD.MovementHelper.getAngleFromDirection(direction);
             var sprite = group.create(x, y, weapon.key);
             if (weapon.deadProjectileKey) {
                 sprite.deadSpriteKey = weapon.deadProjectileKey;
@@ -3159,6 +3380,7 @@ var KGAD;
             sprite.rotation = rotation;
             sprite.direction = direction;
             sprite.renderPriority = -1;
+            sprite.goThroughWalls = goThroughWalls;
             sprite.init(weapon, who, chargePower);
             sprite.body.rotation = sprite.rotation;
             sprite.body.width = sprite.body.width - 1;
@@ -3172,7 +3394,7 @@ var KGAD;
             var pixelPoint = new Phaser.Point();
             var tile = KGAD.CollisionHelper.raycastFirstTile(ray, 4, pixelPoint);
             var aliveTime = weapon.aliveTime;
-            if (tile) {
+            if (!goThroughWalls && tile) {
                 aliveTime = (Phaser.Point.distance(sprite.position, pixelPoint) / sprite.speed) * 1000;
                 sprite.hitWallPoint = pixelPoint;
             }
@@ -3185,7 +3407,7 @@ var KGAD;
         ProjectileManager.prototype.update = function () {
             var _this = this;
             var game = KGAD.Game.Instance;
-            game.physics.arcade.collide(this.activeProjectiles, KGAD.Game.CurrentMap.collisionLayer, function (proj) {
+            game.physics.arcade.collide(this.getActiveProjectilesThatCantPassThroughWalls(), KGAD.Game.CurrentMap.collisionLayer, function (proj) {
                 _this.onProjectileHitWall(proj);
             });
             /*game.physics.arcade.overlap(this.activeProjectiles, Game.CurrentMap.collisionLayer,(proj) => {
@@ -3306,14 +3528,14 @@ var KGAD;
         });
         Object.defineProperty(GameController.prototype, "game", {
             get: function () {
-                return this.context['game'];
+                return KGAD.Game.Instance;
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(GameController.prototype, "map", {
             get: function () {
-                return this.context['map'];
+                return KGAD.Game.CurrentMap;
             },
             enumerable: true,
             configurable: true
@@ -3377,7 +3599,7 @@ var KGAD;
                 this.children[i].destroy();
             }
         };
-        GameController.prototype.switchTo = function (name) {
+        GameController.switchTo = function (name) {
             if (GameController._controllers.containsKey(name)) {
                 var controller = GameController._controllers.getValue(name);
                 GameController.current = controller;
@@ -3389,9 +3611,14 @@ var KGAD;
             for (var i = 0, l = children.length; i < l; ++i) {
                 children[i].parent = controller;
             }
-            controller.preload();
             GameController._controllers.setValue(name, controller);
             return controller;
+        };
+        GameController.preload = function () {
+            GameController._controllers.forEach(function (key, value) {
+                value.preload();
+            });
+            KGAD.Game.Instance.load.start();
         };
         GameController.destroyControllers = function (destroy) {
             if (destroy === void 0) { destroy = true; }
@@ -3415,12 +3642,11 @@ var KGAD;
 (function (KGAD) {
     var PrepareDefenseController = (function (_super) {
         __extends(PrepareDefenseController, _super);
-        function PrepareDefenseController() {
-            _super.apply(this, arguments);
+        function PrepareDefenseController(children, parent) {
+            _super.call(this, children, parent);
+            this.purchaseMenu = new KGAD.PurchaseMenu([], this);
+            this.children.push(this.purchaseMenu);
         }
-        PrepareDefenseController.prototype.preload = function () {
-            _super.prototype.preload.call(this);
-        };
         PrepareDefenseController.prototype.init = function (context) {
             var _this = this;
             _super.prototype.init.call(this, context);
@@ -3430,11 +3656,14 @@ var KGAD;
             });
             KGAD.Input.disablePlayerInput(this.hero);
         };
+        PrepareDefenseController.prototype.preload = function () {
+            _super.prototype.preload.call(this);
+        };
         PrepareDefenseController.prototype.create = function () {
             var _this = this;
             _super.prototype.create.call(this);
             KGAD.AnimationHelper.createTextPopup("PREPARE YOUR DEFENSE");
-            KGAD.AnimationHelper.createTextSubPopup("THIS IS ONLY A PLACEHOLDER FOR NOW");
+            //AnimationHelper.createTextSubPopup("THIS IS ONLY A PLACEHOLDER FOR NOW");
             var spawnPoint = this.map.toPixels(this.map.heroSpawnPoint).add(16, 16);
             var invisSprite = this.game.add.sprite(this.hero.x, this.hero.y);
             invisSprite.visible = false;
@@ -3445,9 +3674,9 @@ var KGAD;
                 invisSprite.kill();
             });
             moveToCenter.start();
-            this.game.time.events.add(5000, function () {
-                _this.switchTo('SimulationController');
-            }, this);
+            /*this.game.time.events.add(5000,() => {
+                this.switchTo('SimulationController');
+            }, this);*/
         };
         PrepareDefenseController.prototype.update = function () {
             _super.prototype.update.call(this);
@@ -3463,6 +3692,9 @@ var KGAD;
             }
             else if (this.game.input.keyboard.isDown(Key.DOWN)) {
                 this.game.camera.y += 125 * this.game.time.physicsElapsed;
+            }
+            if (this.purchaseMenu.ready) {
+                KGAD.GameController.switchTo('SimulationController');
             }
         };
         PrepareDefenseController.prototype.destroy = function () {
@@ -3485,6 +3717,8 @@ var KGAD;
         SimulationController.prototype.init = function (context) {
             _super.prototype.init.call(this, context);
             this.waveInProgress = false;
+            this.debugMode = false;
+            this.shownFailureAnimation = false;
         };
         SimulationController.prototype.preload = function () {
             _super.prototype.preload.call(this);
@@ -3526,7 +3760,7 @@ var KGAD;
                     var rect = new Phaser.Rectangle(position.x - 16, position.y - 16, 32, 32);
                     var occupants = KGAD.OccupiedGrid.getOccupantsInBounds(rect);
                     if (occupants.length === 0) {
-                        console.log('[' + (++spawnCounter).toString() + '] spawn ' + enemyType + ' at (' + position.x + ', ' + position.y + ')');
+                        //console.log('[' + (++spawnCounter).toString() + '] spawn ' + enemyType + ' at (' + position.x + ', ' + position.y + ')');
                         var enemy = _this.actors.createEnemy(enemyType);
                         if (_this.skillChallengeMode) {
                             enemy.health = 999999999;
@@ -3548,11 +3782,38 @@ var KGAD;
             }
             else {
                 this.game.time.events.add(500, function () {
-                    KGAD.AnimationHelper.createTextPopup("PROTECT YOUR KING");
+                    KGAD.AnimationHelper.createTextPopup("PROTECT THE KING");
                     if (!_this.skillChallengeMode) {
                         KGAD.AnimationHelper.createTextSubPopup("WAVE " + _this.script.waveIndex);
                     }
                 }, this);
+                this.antistuckRunning = false;
+            }
+            this.game.input.keyboard.addKey(Phaser.Keyboard.TILDE).onUp.add(function () {
+                _this.debugMode = !_this.debugMode;
+            });
+            if (!this.goldBar && !this.skillChallengeMode) {
+                this.goldBar = this.game.add.sprite(0, 0, 'gold_bar');
+                this.goldBar.fixedToCamera = true;
+                this.goldBar.renderPriority = 99;
+                this.goldBarText = KGAD.Text.createText(this.hero.gold.toString(), {
+                    x: 0,
+                    y: 0,
+                    style: {
+                        fill: "#FFFFFF",
+                        font: "16px MedievalSharpBook",
+                        align: "left"
+                    }
+                });
+                this.goldBarTextSprite = this.game.add.sprite(0, 0);
+                this.goldBarTextSprite.addChild(this.goldBarText);
+                this.goldBarTextSprite.renderPriority = 100;
+                this.goldBarTextSprite.fixedToCamera = true;
+                this.goldBarTextSprite.cameraOffset.x = 20;
+                this.goldBarTextSprite.cameraOffset.y = 2;
+                this.goldBarTextSprite['update'] = function () {
+                    _this.goldBarText.text = _this.hero.gold.toString();
+                };
             }
         };
         SimulationController.prototype.update = function () {
@@ -3565,16 +3826,24 @@ var KGAD;
             physics.collide(projectiles.getActiveProjectiles(), this.actors.enemies, function (first, second) {
                 _this.handleProjectileCollision(first, second);
             });
-            if (this.game.input.activePointer.isDown) {
+            /*if (this.game.input.activePointer.isDown) {
                 var x = this.game.input.activePointer.worldX;
                 var y = this.game.input.activePointer.worldY;
                 this.handleMouseClicked(x, y);
-            }
+            }*/
             if (this.waveInProgress) {
                 if (!this.script.waveInProgress && this.actors.enemies.length === 0) {
                     console.log('wave complete!');
                     this.waveInProgress = false;
-                    this.switchTo('PrepareDefenseController');
+                    if (!this.script.hasNextWave()) {
+                        KGAD.AnimationHelper.createTextPopup("VICTORY!", 250, 7000, function () {
+                            _this.done = true;
+                        });
+                    }
+                    else {
+                        this.hero.revive(5);
+                        KGAD.GameController.switchTo('PrepareDefenseController');
+                    }
                     return;
                 }
             }
@@ -3582,12 +3851,93 @@ var KGAD;
                 this.game.camera.unfollow();
                 this.game.camera.focusOnXY(this.king.x, this.king.y);
             }
-            if (!actors.king.alive && !this.skillChallengeMode) {
-                this.done = true;
+            if (!actors.king.alive && !this.skillChallengeMode && !this.shownFailureAnimation) {
+                this.showFailureAnimation();
+            }
+            this.runAntistuck();
+        };
+        SimulationController.prototype.render = function () {
+            _super.prototype.render.call(this);
+            if (this.debugMode) {
             }
         };
         SimulationController.prototype.destroy = function () {
             _super.prototype.destroy.call(this);
+        };
+        SimulationController.prototype.runAntistuck = function () {
+            if (!this.waveInProgress) {
+                return;
+            }
+            for (var i = 0, l = this.enemies.length; i < l; ++i) {
+                var enemy = this.enemies[i];
+                if (enemy.health >= 0) {
+                    var indices = KGAD.OccupiedGrid.getIndicesOfSprite(enemy, true);
+                    if ($.inArray(-1, indices) >= 0) {
+                        var enem = enemy;
+                        if (typeof enem.killTime === 'undefined') {
+                            enem.killTime = 5000;
+                        }
+                        else {
+                            enem.killTime -= this.game.time.physicsElapsedMS;
+                            if (enem.killTime <= 0) {
+                                console.log('running anti-stuck on enemy');
+                                enemy.inflictDamage(99999, this.hero);
+                            }
+                        }
+                    }
+                    else {
+                        if (typeof enemy['killTime'] === 'number') {
+                            delete enemy['killTime'];
+                        }
+                    }
+                }
+            }
+        };
+        /**
+         *  Show the user an animation indicating that the user has lost.
+         */
+        SimulationController.prototype.showFailureAnimation = function () {
+            var _this = this;
+            this.shownFailureAnimation = true;
+            this.game.time.events.add(1000, function () {
+                var failure = _this.game.add.text(0, 0, 'YOU LOSE', {
+                    font: '36px MedievalSharpBook',
+                    align: 'center',
+                    fill: '#FFFFFF'
+                });
+                var failureSprite = _this.game.make.sprite(_this.camera.width / 2 - failure.width / 2, _this.camera.height / 2 - failure.height / 2);
+                failureSprite.addChild(failure);
+                failureSprite.fixedToCamera = true;
+                failureSprite.alpha = 0;
+                failureSprite.anchor.setTo(0.5);
+                failureSprite['renderPriority'] = 9999;
+                failureSprite.bringToTop();
+                _this.game.world.add(failureSprite);
+                var tween = _this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
+                tween.start();
+                var fadeSprite = _this.game.make.sprite(0, 0, 'black');
+                fadeSprite.renderPriority = 9999;
+                fadeSprite.width = _this.camera.view.width;
+                fadeSprite.height = _this.camera.view.height;
+                fadeSprite.fixedToCamera = true;
+                fadeSprite.alpha = 0;
+                _this.game.world.add(fadeSprite);
+                var fadeTween = _this.game.add.tween(fadeSprite).to({ alpha: 1 }, 4000);
+                fadeTween.onComplete.addOnce(function () {
+                    _this.game.time.events.add(2000, function () {
+                        var finalTween = _this.game.add.tween(failureSprite).to({ alpha: 0 }, 1000);
+                        finalTween.onComplete.addOnce(function () {
+                            _this.game.time.events.add(1500, function () {
+                                _this.done = true;
+                            }, _this);
+                        });
+                        finalTween.start();
+                    }, _this);
+                });
+                fadeTween.start();
+                fadeSprite.bringToTop();
+                failureSprite.bringToTop();
+            }, this);
         };
         /**
          *  Determine what to do when the user clicks.
@@ -3598,8 +3948,9 @@ var KGAD;
             }
             var tile = this.map.fromPixels(new Phaser.Point(x, y));
             var position = this.map.toPixels(tile).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
+            var mercType = this.game.cache.getJSON("mercenary_longbowman");
             if (KGAD.OccupiedGrid.canOccupyInPixels(null, position.x, position.y)) {
-                this.actors.createMercenary(position.x, position.y, 'tank_merc');
+                this.actors.createMercenary(position.x, position.y, mercType);
             }
         };
         /**
@@ -3627,9 +3978,8 @@ var KGAD;
         }
         SkillChallengeController.prototype.init = function (context) {
             _super.prototype.init.call(this, context);
-        };
-        SkillChallengeController.prototype.preload = function () {
-            _super.prototype.preload.call(this);
+            this.shownFailureAnimation = false;
+            this.shownVictoryAnimation = false;
         };
         SkillChallengeController.prototype.create = function () {
             _super.prototype.create.call(this);
@@ -3646,6 +3996,7 @@ var KGAD;
                 fill: '#FFFFFF',
             });
             this.skillChallengeTimer.fixedToCamera = true;
+            this.hero.weapon.power = 1000;
         };
         SkillChallengeController.prototype.update = function () {
             _super.prototype.update.call(this);
@@ -3662,9 +4013,6 @@ var KGAD;
             }
             this.updateSkillTimer();
         };
-        SkillChallengeController.prototype.destroy = function () {
-            _super.prototype.destroy.call(this);
-        };
         /**
          *  Updates the timer, which is counting down until the player wins.
          */
@@ -3672,7 +4020,7 @@ var KGAD;
             this.skillChallengeStartTime += this.game.time.elapsedMS;
             var timeLeftMs = this.skillChallengeEndTime - this.skillChallengeStartTime;
             if (timeLeftMs <= 0) {
-                if (timeLeftMs <= 0 && !this.failedSkillChallenge) {
+                if (timeLeftMs <= 0 && !this.failedSkillChallenge && !this.shownVictoryAnimation) {
                     this.showVictoryAnimation();
                 }
             }
@@ -3680,7 +4028,7 @@ var KGAD;
                 var timeLeft = this.formatTime(timeLeftMs);
                 this.skillChallengeTimer.text = 'Time left: ' + timeLeft;
                 if (timeLeftMs < 10000) {
-                    this.skillChallengeTimer.tint = 0xFF9999;
+                    this.skillChallengeTimer.tint = 0xFF7777;
                 }
                 if (!this.actors.hero.alive || !this.actors.king.alive) {
                     this.failedSkillChallenge = true;
@@ -3692,6 +4040,7 @@ var KGAD;
          */
         SkillChallengeController.prototype.showVictoryAnimation = function () {
             var _this = this;
+            this.shownVictoryAnimation = true;
             this.actors.hero.health = 999;
             this.actors.king.health = 999;
             var enemies = this.actors.enemies;
@@ -3703,7 +4052,7 @@ var KGAD;
                     _this.game.time.events.add(100, killEnemy, _this);
                 }
                 else {
-                    _this.game.time.events.add(30000, function () {
+                    _this.game.time.events.add(15000, function () {
                         _this.done = true;
                     }, _this);
                 }
@@ -3739,6 +4088,8 @@ var KGAD;
                 failureSprite.fixedToCamera = true;
                 failureSprite.alpha = 0;
                 failureSprite.anchor.setTo(0.5);
+                failureSprite['renderPriority'] = 9999;
+                failureSprite.bringToTop();
                 _this.game.world.add(failureSprite);
                 var tween = _this.game.add.tween(failureSprite).to({ alpha: 1 }, 1000);
                 tween.start();
@@ -3754,7 +4105,9 @@ var KGAD;
                     _this.game.time.events.add(2000, function () {
                         var finalTween = _this.game.add.tween(failureSprite).to({ alpha: 0 }, 1000);
                         finalTween.onComplete.addOnce(function () {
-                            _this.done = true;
+                            _this.game.time.events.add(1500, function () {
+                                _this.done = true;
+                            }, _this);
                         });
                         finalTween.start();
                     }, _this);
@@ -4175,6 +4528,520 @@ var KGAD;
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
+    var Button = (function () {
+        function Button(key, x, y, buttonWidth, buttonHeight) {
+            this.key = key;
+            this.game = KGAD.Game.Instance;
+            this.position = new Phaser.Point(x, y);
+            this.width = buttonWidth;
+            this.height = buttonHeight;
+            this.offset = new Phaser.Point();
+            this.clicked = new Phaser.Signal();
+            this.hoveredOver = new Phaser.Signal();
+            this.hoveredOut = new Phaser.Signal();
+            this.mousePressed = new Phaser.Signal();
+            this.mouseReleased = new Phaser.Signal();
+            this.preload();
+        }
+        Object.defineProperty(Button.prototype, "x", {
+            get: function () {
+                return this.position.x;
+            },
+            set: function (_x) {
+                this.position.x = _x;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Button.prototype, "y", {
+            get: function () {
+                return this.position.y;
+            },
+            set: function (_y) {
+                this.position.y = _y;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Button.prototype, "offsetX", {
+            get: function () {
+                return this.offset.x;
+            },
+            set: function (x) {
+                this.offset.x = x;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Button.prototype, "offsetY", {
+            get: function () {
+                return this.offset.y;
+            },
+            set: function (y) {
+                this.offset.y = y;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Button.prototype, "disabled", {
+            get: function () {
+                return this.isDisabled;
+            },
+            set: function (disabled) {
+                if (disabled) {
+                    this.button.frame = 3;
+                    this.button.setFrames(3, 3, 3, 3);
+                }
+                else {
+                    this.button.setFrames(1, 0, 2, 1);
+                }
+                this.isDisabled = disabled;
+                this.button.inputEnabled = !this.isDisabled;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Button.prototype.preload = function () {
+            var url = 'assets/textures/misc/' + this.key + '.png';
+            this.game.load.spritesheet(this.key, url, this.width, this.height);
+        };
+        Button.prototype.create = function () {
+            var overFrame = 1;
+            var outFrame = 0;
+            var downFrame = 2;
+            var upFrame = 1;
+            var x = this.x;
+            var y = this.y;
+            this.button = this.game.add.button(this.x, this.y, this.key, this._onClick, this, overFrame, outFrame, downFrame, upFrame);
+            this.button.onInputOver.add(this._onHover, this);
+            this.button.onInputOut.add(this._onHoverOut, this);
+            this.button.onInputDown.add(this._onMouseDown, this);
+            this.button.onInputDown.add(this._onMouseUp, this);
+            this.button.fixedToCamera = true;
+            this.button.position.set(0, 0);
+            this.button.cameraOffset.x = x;
+            this.button.cameraOffset.y = y;
+        };
+        Button.prototype._onClick = function () {
+            if (!this.disabled) {
+                this.clicked.dispatch(this);
+            }
+        };
+        Button.prototype._onHover = function () {
+            if (!this.disabled) {
+                this.hoveredOver.dispatch(this);
+            }
+        };
+        Button.prototype._onHoverOut = function () {
+            if (!this.disabled) {
+                this.hoveredOut.dispatch(this);
+            }
+        };
+        Button.prototype._onMouseDown = function () {
+            if (!this.disabled) {
+                this.mousePressed.dispatch(this);
+            }
+        };
+        Button.prototype._onMouseUp = function () {
+            if (!this.disabled) {
+                this.mouseReleased.dispatch(this);
+            }
+        };
+        return Button;
+    })();
+    KGAD.Button = Button;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var ButtonGroup = (function (_super) {
+        __extends(ButtonGroup, _super);
+        function ButtonGroup(game, parent, name, addToStage, enableBody, physicsBodyType) {
+            _super.call(this, game, parent, name, addToStage, enableBody, physicsBodyType);
+            this.buttons = new collections.LinkedList();
+            this.clicked = new Phaser.Signal();
+            this.fixedToCamera = true;
+            this.x = 0;
+            this.y = 0;
+            this.spacing = 0;
+            this.margin = 0;
+        }
+        Object.defineProperty(ButtonGroup.prototype, "spacing", {
+            get: function () {
+                return this.spacing;
+            },
+            set: function (spacing) {
+                this.spacing = spacing;
+                this.updatePosition();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ButtonGroup.prototype, "margin", {
+            get: function () {
+                return this.margin;
+            },
+            set: function (margin) {
+                this.margin = margin;
+                this.updatePosition();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        /**
+         *  Add several buttons.
+         */
+        ButtonGroup.prototype.addButtons = function (buttons) {
+            for (var i = 0, l = buttons.length; i < l; ++i) {
+                this.addButton(buttons[i]);
+            }
+        };
+        /**
+         *  Adds a button to the button group.
+         */
+        ButtonGroup.prototype.addButton = function (button, index) {
+            this.addEventHandlers(button);
+            this.buttons.add(button, index);
+        };
+        /**
+         *  Removes a button from the button group.
+         */
+        ButtonGroup.prototype.removeButton = function (button) {
+            var removed;
+            if (typeof button === 'number') {
+                removed = this.buttons.removeElementAtIndex(button);
+            }
+            else {
+                removed = this.buttons.remove(button) ? button : null;
+            }
+            if (removed) {
+                this.removeEventHandlers(removed);
+            }
+            return removed;
+        };
+        /**
+         *  Enable the player to navigate the button group using the keyboard and gamepad.
+         */
+        ButtonGroup.prototype.enableKeyboardAndGamepadNavigation = function () {
+            var kb = this.game.input.keyboard;
+            var gp = this.game.input.gamepad;
+            var pad = gp.padsConnected === 0 ? null : gp.pad1.connected ? gp.pad1 : gp.pad2.connected ? gp.pad2 : gp.pad3.connected ? gp.pad3 : gp.pad4.connected ? gp.pad4 : null;
+            this.keys[0 /* Up */] = [kb.addKey(Phaser.Keyboard.UP),];
+            this.keys[1 /* Left */] = [kb.addKey(Phaser.Keyboard.LEFT),];
+            this.keys[3 /* Right */] = [kb.addKey(Phaser.Keyboard.RIGHT),];
+            this.keys[2 /* Down */] = [kb.addKey(Phaser.Keyboard.DOWN),];
+            if (pad != null) {
+                this.keys[0 /* Up */].push(pad.getButton(Phaser.Gamepad.XBOX360_DPAD_UP));
+                this.keys[2 /* Down */].push(pad.getButton(Phaser.Gamepad.XBOX360_DPAD_DOWN));
+                this.keys[1 /* Left */].push(pad.getButton(Phaser.Gamepad.XBOX360_DPAD_LEFT));
+                this.keys[3 /* Right */].push(pad.getButton(Phaser.Gamepad.XBOX360_DPAD_RIGHT));
+            }
+        };
+        /**
+         *  Disable the player to navigate the button group using the keyboard and gamepad.
+         */
+        ButtonGroup.prototype.disableKeyboardAndGameplayNavigation = function () {
+            for (var direction in this.keys) {
+                if (this.keys.hasOwnProperty(direction)) {
+                    var keyList = this.keys[direction];
+                    for (var i = 0, l = keyList.length; i < l; ++i) {
+                        var key = keyList[i];
+                        if (key instanceof Phaser.Key) {
+                            key.enabled = false;
+                        }
+                        else if (key instanceof Phaser.GamepadButton) {
+                            key.destroy();
+                        }
+                    }
+                }
+            }
+            this.keys = {};
+        };
+        /**
+         *  Adds internal event handlers for the button.
+         */
+        ButtonGroup.prototype.addEventHandlers = function (button) {
+            button.clicked.add(this.onButtonClicked, this);
+        };
+        /**
+         *  Removes internal event handlers for the button.
+         */
+        ButtonGroup.prototype.removeEventHandlers = function (button) {
+            button.clicked.remove(this.onButtonClicked, this);
+        };
+        /**
+         *  Called when a button associated with this group is clicked.
+         */
+        ButtonGroup.prototype.onButtonClicked = function (button) {
+            this.clicked.dispatch(button, this);
+        };
+        /**
+         *  Updates the position of each button in this button group.
+         */
+        ButtonGroup.prototype.updatePosition = function () {
+            var _this = this;
+            var len = this.buttons.size();
+            var x = this.cameraOffset.x + this.margin;
+            var y = this.cameraOffset.y + this.margin;
+            var startingX = x;
+            var startingY = y;
+            this.buttons.forEach(function (button) {
+                button.x = x;
+                button.y = y;
+                y += button.height + _this.spacing;
+                return true;
+            });
+        };
+        return ButtonGroup;
+    })(Phaser.Group);
+    KGAD.ButtonGroup = ButtonGroup;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var PurchaseMenu = (function (_super) {
+        __extends(PurchaseMenu, _super);
+        function PurchaseMenu() {
+            _super.apply(this, arguments);
+        }
+        Object.defineProperty(PurchaseMenu.prototype, "ready", {
+            get: function () {
+                return this._ready;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PurchaseMenu.prototype, "parchment", {
+            get: function () {
+                return this._parchment;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PurchaseMenu.prototype, "parchmentPosition", {
+            get: function () {
+                return this.parchment.cameraOffset;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        PurchaseMenu.prototype.init = function (context) {
+            _super.prototype.init.call(this, context);
+            this._ready = false;
+        };
+        PurchaseMenu.prototype.create = function () {
+            var _this = this;
+            this._parchment = this.game.add.sprite(this.camera.view.width, 0, 'parchment');
+            this.parchment.cameraOffset.x = this.camera.view.width - 1;
+            this.parchment.renderPriority = 3;
+            var tween = this.game.add.tween(this.parchment.cameraOffset).to({ x: this.camera.view.width - this.parchment.width }, 250, Phaser.Easing.Exponential.In, true, 500);
+            this.parchment.fixedToCamera = true;
+            this.parchment.x = 0;
+            var headerText = KGAD.Text.createText("Mercenaries", {
+                style: {
+                    fill: "#000000",
+                    font: "28px MedievalSharpBook"
+                }
+            });
+            this._headerText = this.game.make.sprite(this.parchmentPosition.x + 20, this.parchmentPosition.y + 10);
+            this._headerText.addChild(headerText);
+            this._headerText.fixedToCamera = true;
+            this._headerText.renderPriority = 4;
+            this.world.add(this._headerText);
+            this._readyButton = new KGAD.Button('ready_button', this.camera.view.width, this.camera.view.height - 52, 96, 48);
+            this._readyButton.create();
+            this._readyButton.clicked.add(this.onReadyClicked, this);
+            this.game.add.tween(this._readyButton.button.cameraOffset).to({ x: this.camera.view.width - this._readyButton.width - 4 }, 250, Phaser.Easing.Exponential.In, true, 500);
+            this._clicked = false;
+            // TODO:
+            this._mercenariesForHire = [
+                this.game.cache.getJSON('mercenary_longbowman')
+            ];
+            this._mercenaryButtons = [
+                new KGAD.Button('merc_frame', this.camera.view.width, 0, 36, 36)
+            ];
+            var parchment = this._parchment;
+            for (var i = 0, l = this._mercenaryButtons.length; i < l; ++i) {
+                var mercType = this._mercenariesForHire[i];
+                var button = this._mercenaryButtons[i];
+                button.create();
+                var sprite = this.game.add.sprite(this.camera.view.width, 0, mercType.key);
+                KGAD.AnimationLoader.addAnimationToSprite(sprite, mercType.key);
+                sprite.animations.play('face_down', 0, false);
+                sprite.fixedToCamera = true;
+                sprite.anchor.set(0.5, 0.5);
+                sprite.renderPriority = 999;
+                var phaserButton = button.button;
+                phaserButton.fixedToCamera = true;
+                phaserButton.renderPriority = 4;
+                phaserButton['update'] = function () {
+                    phaserButton.cameraOffset.x = parchment.cameraOffset.x + 16;
+                    phaserButton.cameraOffset.y = parchment.cameraOffset.y + 48;
+                    sprite.cameraOffset.x = phaserButton.cameraOffset.x + phaserButton.width / 2;
+                    sprite.cameraOffset.y = phaserButton.cameraOffset.y + phaserButton.height / 2;
+                };
+                button['previewSprite'] = sprite;
+                button.clicked.add(function (btn) {
+                    _this.hideParchment();
+                    _this.startPreviewingMercenaryPlacement(btn);
+                }, this);
+            }
+            this._parchmentHidden = false;
+            this.updateButtonStatus();
+        };
+        PurchaseMenu.prototype.update = function () {
+            var _this = this;
+            _super.prototype.update.call(this);
+            this._headerText.cameraOffset.x = this.parchmentPosition.x + 20;
+            this._headerText.cameraOffset.y = this.parchmentPosition.y + 10;
+            if (!this._clicked && (this.game.input.gamepad.isDown(Phaser.Gamepad.XBOX360_START) || this.game.input.keyboard.isDown(Phaser.Keyboard.ENTER))) {
+                this._clicked = true;
+                this._readyButton.button.frame = 1;
+                this.game.time.events.add(50, function () {
+                    _this._readyButton.button.frame = 2;
+                    _this.onReadyClicked();
+                    _this.game.time.events.add(50, function () {
+                        _this._readyButton.button.frame = 1;
+                    }, _this);
+                }, this);
+            }
+            if (this._parchmentHidden) {
+                if (this._parchment.input.checkPointerOver(this.game.input.activePointer)) {
+                    this.showParchment();
+                }
+                else if (this.game.input.activePointer.isDown) {
+                    this.handleMouseClicked(this.game.input.activePointer.x, this.game.input.activePointer.y);
+                }
+            }
+        };
+        PurchaseMenu.prototype.destroy = function () {
+            var _this = this;
+            _super.prototype.destroy.call(this);
+            var parchmentTween = this.game.add.tween(this.parchment.cameraOffset).to({ x: this.camera.view.width + 1 }, 250, Phaser.Easing.Exponential.Out, true, 0);
+            var readyButtonTween = this.game.add.tween(this._readyButton.button.cameraOffset).to({ x: this.camera.view.width + 1 }, 250, Phaser.Easing.Exponential.Out, true, 0);
+            parchmentTween.onComplete.addOnce(function () {
+                _this._parchment.kill();
+            }, this);
+            readyButtonTween.onComplete.addOnce(function () {
+                _this._readyButton.button.kill();
+            });
+            this._headerText.destroy(true);
+            this.stopPreviewingMercenaryPlacement();
+            for (var i = 0, l = this._mercenaryButtons.length; i < l; ++i) {
+                var button = this._mercenaryButtons[i];
+                button.button.kill();
+            }
+        };
+        PurchaseMenu.prototype.startPreviewingMercenaryPlacement = function (button) {
+            var _this = this;
+            var sprite = button['previewSprite'];
+            if (sprite) {
+                this._previewButton = button;
+                this._previewSprite = this.game.add.sprite(0, 0, sprite.key);
+                this._previewKey = 'mercenary_' + sprite.key;
+                var mercType = this.game.cache.getJSON(this._previewKey);
+                KGAD.AnimationLoader.addAnimationToSprite(this._previewSprite, this._previewKey);
+                this._previewSprite.key = null;
+                this._previewSprite.animations.play('face_down', 1, false);
+                this._previewSprite.alpha = 0.5;
+                this._previewSprite.anchor.setTo(0.5);
+                this._previewSprite.tint = 0xFF7777;
+                this._previewSprite.renderPriority = 9;
+                this._previewSprite['update'] = function () {
+                    if (!_this._parchmentHidden) {
+                        return;
+                    }
+                    var pos = _this.map.fromPixels(_this.game.input.activePointer.worldX, _this.game.input.activePointer.worldY);
+                    pos = _this.map.toPixels(pos).add(16, 16);
+                    _this._previewSprite.x = pos.x;
+                    _this._previewSprite.y = pos.y;
+                    //this.game.debug.rectangle(new Phaser.Rectangle(pos.x - 16, pos.y - 16, 32, 32), '#FFFFFF', false);
+                    if ((mercType.canPerch && KGAD.OccupiedGrid.canOccupyInPixels(null, _this._previewSprite.position)) || _this.map.canPerchInPixels(_this._previewSprite.x, _this._previewSprite.y)) {
+                        _this._previewSprite.tint = 0x77FF77;
+                    }
+                    else {
+                        _this._previewSprite.tint = 0xFF7777;
+                    }
+                };
+            }
+        };
+        PurchaseMenu.prototype.stopPreviewingMercenaryPlacement = function () {
+            if (this._previewSprite) {
+                this._previewSprite['update'] = function () {
+                };
+                this._previewSprite.kill();
+                this._previewSprite = null;
+            }
+        };
+        PurchaseMenu.prototype.hideParchment = function () {
+            var _this = this;
+            var tween = this.game.add.tween(this.parchment.cameraOffset).to({ x: this.camera.view.width - 16 }, 250, Phaser.Easing.Exponential.Out, false, 0);
+            tween.onComplete.addOnce(function () {
+                _this._parchmentHidden = true;
+                _this._parchment.inputEnabled = true;
+            });
+            tween.start();
+            this.game.add.tween(this._readyButton.button.cameraOffset).to({ x: this.camera.view.width }, 250, Phaser.Easing.Exponential.Out, true, 0);
+        };
+        PurchaseMenu.prototype.showParchment = function () {
+            var tween = this.game.add.tween(this.parchment.cameraOffset).to({ x: this.camera.view.width - this.parchment.width }, 250, Phaser.Easing.Exponential.Out, false, 0);
+            tween.start();
+            this.game.add.tween(this._readyButton.button.cameraOffset).to({ x: this.camera.view.width - this._readyButton.width - 4 }, 250, Phaser.Easing.Exponential.Out, true);
+            this.stopPreviewingMercenaryPlacement();
+            this._parchmentHidden = false;
+            this._parchment.inputEnabled = false;
+            this._previewButton.button.bringToTop();
+            var preview = this._previewButton['previewSprite'];
+            preview.bringToTop();
+        };
+        /**
+         *  Determine what to do when the user clicks.
+         */
+        PurchaseMenu.prototype.handleMouseClicked = function (x, y) {
+            if (!this._previewSprite) {
+                return;
+            }
+            var tile = this.map.fromPixels(new Phaser.Point(this._previewSprite.x, this._previewSprite.y));
+            var position = this.map.toPixels(tile).add(KGAD.GameMap.TILE_WIDTH / 2, KGAD.GameMap.TILE_HEIGHT / 2);
+            var mercType = this.game.cache.getJSON(this._previewKey);
+            var canOccupy = KGAD.OccupiedGrid.canOccupyInPixels(null, position.x, position.y);
+            var canPerch = mercType.canPerch && this.map.canPerchInPixels(position.x, position.y);
+            var isPerched = canPerch && !canOccupy;
+            if ((mercType.canPerch && this.map.canPerchInPixels(position.x, position.y)) || canOccupy) {
+                var merc = this.actors.createMercenary(position.x, position.y, mercType);
+                merc.isPerched = isPerched;
+                this.hero.gold -= mercType.cost;
+                this.updateButtonStatus();
+                this.showParchment();
+            }
+        };
+        PurchaseMenu.prototype.updateButtonStatus = function () {
+            for (var i = 0, l = this._mercenaryButtons.length; i < l; ++i) {
+                var button = this._mercenaryButtons[i];
+                var mercType = this._mercenariesForHire[i];
+                button.disabled = this.hero.gold < mercType.cost;
+                var sprite = button['previewSprite'];
+                if (button.disabled) {
+                    sprite.tint = 0x777777;
+                }
+                else {
+                    sprite.tint = 0xFFFFFF;
+                }
+            }
+        };
+        PurchaseMenu.prototype.onReadyClicked = function () {
+            this._ready = true;
+        };
+        return PurchaseMenu;
+    })(KGAD.GameController);
+    KGAD.PurchaseMenu = PurchaseMenu;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
     (function (Directions) {
         Directions[Directions["Up"] = 0] = "Up";
         Directions[Directions["Left"] = 1] = "Left";
@@ -4348,6 +5215,8 @@ var KGAD;
             this.currentDestination = null;
             this.map = KGAD.Game.CurrentMap;
             this.blockedTime = 0;
+            this.isComplete = true;
+            this.tweening = false;
             this.blocked = new Phaser.Signal();
             this.completed = new Phaser.Signal();
         }
@@ -4356,7 +5225,7 @@ var KGAD;
              *  Gets whether or not the movement is running.
              */
             get: function () {
-                return this.timeToMove > 0;
+                return !this.isComplete;
             },
             enumerable: true,
             configurable: true
@@ -4369,6 +5238,7 @@ var KGAD;
             this.currentDestination = null;
             this.timeToMove = 0;
             this.blockedTime = 0;
+            this.isComplete = true;
             if (complete) {
                 this.completed.dispatch();
             }
@@ -4402,12 +5272,14 @@ var KGAD;
             this.direction = KGAD.MovementHelper.getDirectionFromAngle(this.angle);
             this.distance = Phaser.Point.distance(this.sprite.position, this.currentDestination);
             this.timeToMove = (this.distance / this.sprite.movementSpeed) * 1000.0;
+            this.isComplete = this.timeToMove === 0;
         };
         /**
          *  Move towards the goal.
          */
         MoveTween.prototype.step = function () {
-            if (this.currentDestination == null) {
+            var _this = this;
+            if (this.currentDestination == null || this.isComplete || this.tweening) {
                 return;
             }
             var dt = this.game.time.physicsElapsedMS;
@@ -4416,8 +5288,8 @@ var KGAD;
             if (this.timeToMove <= 0) {
                 completeMovement = true;
             }
-            var xMovement = this.direction === 1 /* Left */ ? -1 : this.direction === 3 /* Right */ ? 1 : 0;
-            var yMovement = this.direction === 0 /* Up */ ? -1 : this.direction === 2 /* Down */ ? 1 : 0;
+            var xMovement = Math.cos(this.angle);
+            var yMovement = Math.sin(this.angle);
             var oldX = this.sprite.x;
             var oldY = this.sprite.y;
             var x, y;
@@ -4438,9 +5310,46 @@ var KGAD;
                 this.handleBlocked(occupants);
             }
             if (completeMovement) {
-                this.currentDestination = null;
-                this.completed.dispatch();
+                if (Math.abs(oldX - x) > 1 || Math.abs(oldY - y) > 1) {
+                    this.sprite.position.set(oldX, oldY);
+                    KGAD.OccupiedGrid.add(this.sprite);
+                    if (this.centering) {
+                        var distance = Phaser.Point.distance(this.sprite.position, this.currentDestination);
+                        var speed = (this.distance / (this.sprite.movementSpeed * 4)) * 1000.0;
+                        var tween = this.game.add.tween(this.sprite).to({ x: this.currentDestination.x, y: this.currentDestination.y }, this.sprite.movementSpeed * 2, Phaser.Easing.Linear.None, false);
+                        this.tweening = true;
+                        tween.onComplete.addOnce(function () {
+                            _this.tweening = false;
+                            KGAD.OccupiedGrid.add(_this.sprite);
+                            _this.onMovementCompleted();
+                        });
+                        tween.start();
+                    }
+                    else {
+                        this.centerOnTile();
+                    }
+                }
+                else {
+                    this.onMovementCompleted();
+                }
             }
+        };
+        /**
+         *  Move to the center of a tile.
+         */
+        MoveTween.prototype.centerOnTile = function () {
+            this.generateData();
+            this.centering = true;
+            console.log('centering... distance=' + this.distance + ', time=' + this.timeToMove);
+        };
+        /**
+         *  Called internally.
+         */
+        MoveTween.prototype.onMovementCompleted = function () {
+            this.isComplete = true;
+            this.centering = false;
+            this.currentDestination = null;
+            this.completed.dispatch();
         };
         /**
          *  Figure out what to do when we're blocked from moving to the next tile.
@@ -4450,7 +5359,15 @@ var KGAD;
                 this.blockedTime = this.game.time.now;
             }
             else {
-                if (this.game.time.now - this.blockedTime >= MoveTween.BLOCKED_THRESHOLD) {
+                var beingBlockedByEnemy = false;
+                for (var i = 0, l = byWho.length; i < l; ++i) {
+                    if (byWho[i].alliance !== this.sprite.alliance) {
+                        beingBlockedByEnemy = true;
+                        break;
+                    }
+                }
+                if (beingBlockedByEnemy || this.game.time.now - this.blockedTime >= MoveTween.BLOCKED_THRESHOLD) {
+                    console.log(this.sprite.key + ' is blocked by ' + (byWho[0] || { key: 'a wall' }).key + ', stopping tween');
                     this.stop(false);
                     this.blocked.dispatch(byWho);
                 }
@@ -4767,6 +5684,8 @@ var KGAD;
     })();
     KGAD.EnemySpecification = EnemySpecification;
 })(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
@@ -5122,6 +6041,131 @@ var KGAD;
 // is governed by a BSD-style license that can be found in the LICENSE file.
 var KGAD;
 (function (KGAD) {
+    var DemoState = (function (_super) {
+        __extends(DemoState, _super);
+        function DemoState() {
+            _super.call(this);
+            this.addCallbacks = true;
+        }
+        DemoState.prototype.create = function () {
+            var _this = this;
+            this.camera.bounds.x = 0;
+            this.camera.bounds.y = 0;
+            var delay = 0;
+            var createTween = function (text) {
+                text.alpha = 0;
+                var tween = _this.game.add.tween(text).to({ alpha: 1 }, 50, Phaser.Easing.Cubic.InOut, true, delay, 3);
+                delay += 500;
+                _this.game.world.add(text);
+                return tween;
+            };
+            var header = KGAD.Text.createText("Thanks for playing!", {
+                centeredX: true,
+                y: 24,
+                style: {
+                    align: "center",
+                    fill: "#77FF77",
+                    font: "36px MedievalSharpBook"
+                }
+            });
+            var subHeader = KGAD.Text.createText("Features planned:", {
+                centeredX: true,
+                y: header.y + header.height + 2,
+                style: {
+                    align: "center",
+                    fill: "#FFFFFF",
+                    font: "26px MedievalSharpBook"
+                }
+            });
+            var featuresStyle = {
+                font: "22px MedievalSharpBook",
+                align: "left",
+                fill: "#FFFFFF"
+            };
+            var features = KGAD.Text.createLines([
+                "- Full campaign mode",
+                "- More mercenaries for hire",
+                "- Build traps",
+                "- Re-work graphics",
+                "- Music and sound",
+                "- Stat upgrades",
+                "- Player abilities",
+                "- More skill challenges",
+                "- Buy new skins and weapons with microtransactions",
+                "- (I'm joking)",
+                "- (Probably)",
+                "- King will react to being attacked",
+            ], { x: 75, y: subHeader.y + subHeader.height + 5, style: featuresStyle }, 1);
+            var lastItem = features[features.length - 1];
+            var anyKeyText = "Press any key to continue.";
+            if (this.game.input.gamepad.padsConnected > 0) {
+                anyKeyText = "Press any button to continue.";
+            }
+            var measurements = KGAD.Text.measureText(anyKeyText, 20);
+            var pressAnyKey = KGAD.Text.createText(anyKeyText, {
+                centerX: true,
+                x: this.stage.width / 2 - measurements.width / 2,
+                y: this.stage.height - subHeader.height - 5,
+                style: {
+                    align: "center",
+                    fill: "#FFFFFF",
+                    font: "20px MedievalSharpBook"
+                }
+            });
+            createTween(header);
+            createTween(subHeader);
+            for (var i = 0, l = features.length; i < l; ++i) {
+                createTween(features[i]);
+            }
+            createTween(pressAnyKey);
+            this.timeToWait = delay;
+            this.setUpInput = false;
+        };
+        DemoState.prototype.update = function () {
+            if (this.timeToWait > 0) {
+                this.timeToWait -= this.time.physicsElapsedMS;
+                if (this.timeToWait < 0) {
+                    this.timeToWait = 0;
+                }
+            }
+            if (this.timeToWait === 0 && !this.setUpInput) {
+                this.addAnyKeyHandler();
+                this.setUpInput = true;
+            }
+            if (this.timeToWait === 0) {
+                if (this.input.activePointer.isDown) {
+                    this.switchStates();
+                }
+            }
+        };
+        DemoState.prototype.switchStates = function () {
+            if (this.game.state.current === KGAD.States.Demo) {
+                KGAD.States.Instance.switchTo(KGAD.States.Boot, true, false);
+            }
+        };
+        DemoState.prototype.addAnyKeyHandler = function () {
+            var _this = this;
+            if (this.addCallbacks) {
+                this.addCallbacks = false;
+            }
+            else {
+                return;
+            }
+            this.game.input.keyboard.addCallbacks(this, null, this.switchStates);
+            this.game.input.gamepad.addCallbacks(this, {
+                onUp: function () {
+                    _this.switchStates();
+                }
+            });
+        };
+        return DemoState;
+    })(Phaser.State);
+    KGAD.DemoState = DemoState;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
     var GameContext = (function () {
         function GameContext(props) {
             $.extend(this, props);
@@ -5129,6 +6173,118 @@ var KGAD;
         return GameContext;
     })();
     KGAD.GameContext = GameContext;
+})(KGAD || (KGAD = {}));
+// Copyright (c) 2015, likadev. All rights reserved. Use of this source code
+// is governed by a BSD-style license that can be found in the LICENSE file.
+var KGAD;
+(function (KGAD) {
+    var InfoState = (function (_super) {
+        __extends(InfoState, _super);
+        function InfoState() {
+            _super.call(this);
+            this.addCallbacks = true;
+        }
+        InfoState.prototype.init = function (args) {
+            this.map = args[0];
+            this.script = args[1];
+        };
+        InfoState.prototype.create = function () {
+            var _this = this;
+            this.camera.bounds.x = 0;
+            this.camera.bounds.y = 0;
+            var delay = 0;
+            var createTween = function (text) {
+                text.alpha = 0;
+                var tween = _this.game.add.tween(text).to({ alpha: 1 }, 50, Phaser.Easing.Cubic.InOut, true, delay, 3);
+                delay += 500;
+                _this.game.world.add(text);
+                return tween;
+            };
+            var header = KGAD.Text.createText("How to Play", {
+                centeredX: true,
+                y: 24,
+                style: {
+                    align: "center",
+                    fill: "#FFFF77",
+                    font: "36px MedievalSharpBook"
+                }
+            });
+            var featuresStyle = {
+                font: "22px MedievalSharpBook",
+                align: "left",
+                fill: "#FFFFFF"
+            };
+            var features = KGAD.Text.createLines([
+                "Use arrow keys, WASD, or XBox 360 DPAD to move",
+                "Z, Y, Spacebar, or the XBox 360 'A' button to shoot",
+                "Hold the 'shoot' button to charge your weapon.",
+                "",
+                "Tip: You can place archers on castle walls."
+            ], { x: 50, y: 125, style: featuresStyle }, 1);
+            var lastItem = features[features.length - 1];
+            var anyKeyText = "Press any key to continue.";
+            if (this.game.input.gamepad.padsConnected > 0) {
+                anyKeyText = "Press any button to continue.";
+            }
+            var measurements = KGAD.Text.measureText(anyKeyText, 20);
+            var pressAnyKey = KGAD.Text.createText(anyKeyText, {
+                centerX: true,
+                x: this.stage.width / 2 - measurements.width / 2,
+                y: this.stage.height - measurements.height - 5,
+                style: {
+                    align: "center",
+                    fill: "#FFFFFF",
+                    font: "20px MedievalSharpBook"
+                }
+            });
+            createTween(header);
+            for (var i = 0, l = features.length; i < l; ++i) {
+                createTween(features[i]);
+            }
+            createTween(pressAnyKey);
+            this.timeToWait = delay;
+            this.setUpInput = false;
+        };
+        InfoState.prototype.update = function () {
+            if (this.timeToWait > 0) {
+                this.timeToWait -= this.time.physicsElapsedMS;
+                if (this.timeToWait < 0) {
+                    this.timeToWait = 0;
+                }
+            }
+            if (this.timeToWait === 0 && !this.setUpInput) {
+                this.addAnyKeyHandler();
+                this.setUpInput = true;
+            }
+            if (this.timeToWait === 0) {
+                if (this.input.activePointer.isDown) {
+                    this.switchStates();
+                }
+            }
+        };
+        InfoState.prototype.switchStates = function () {
+            if (this.game.state.current === KGAD.States.Info) {
+                KGAD.States.Instance.switchTo(KGAD.States.GameSimulation, true, false, this.map, this.script);
+            }
+        };
+        InfoState.prototype.addAnyKeyHandler = function () {
+            var _this = this;
+            if (this.addCallbacks) {
+                this.addCallbacks = false;
+            }
+            else {
+                return;
+            }
+            this.game.input.keyboard.addCallbacks(this, null, this.switchStates);
+            this.game.input.gamepad.addCallbacks(this, {
+                onUp: function () {
+                    _this.switchStates();
+                }
+            });
+        };
+        return InfoState;
+    })(Phaser.State);
+    KGAD.InfoState = InfoState;
 })(KGAD || (KGAD = {}));
 // Copyright (c) 2015, likadev. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
@@ -5143,8 +6299,8 @@ var KGAD;
             this.map = args[0];
             this.script = args[1];
             this.ready = false;
-            this.centerX = this.centerX || this.world.centerX;
-            this.centerY = this.centerY || this.world.centerY;
+            this.centerX = this.centerX || KGAD.Game.Width / 2;
+            this.centerY = this.centerY || KGAD.Game.Height / 2;
         };
         SkillChallengeIntroState.prototype.preload = function () {
             this.game.input.gamepad.start();
@@ -5368,15 +6524,16 @@ var KGAD;
         /**
          *  Finds the shortest path from the given point to the given point (in tiles).
          */
-        GameMap.prototype.findPath = function (from, to, fullSearch) {
+        GameMap.prototype.findPath = function (from, to, fullSearch, customNodes) {
             if (fullSearch === void 0) { fullSearch = false; }
+            if (customNodes === void 0) { customNodes = []; }
             if (from.x < 0 || from.x >= this.width || from.y < 0 || from.y >= this.height) {
                 throw new RangeError("Pathfinding: 'from' coordinate is out of range: (" + from.x + ", " + from.y + ") width=" + this.width + ", height=" + this.height);
             }
             if (to.x < 0 || to.x >= this.width || to.y < 0 || to.y >= this.height) {
                 throw new RangeError("Pathfinding: 'to' coordinate is out of range: (" + to.x + ", " + to.y + ")");
             }
-            return this.pathfinder.findPath(from, to, fullSearch);
+            return this.pathfinder.findPath(from, to, fullSearch, customNodes);
         };
         /**
          *  Preloads assets. Should be called during the 'preload' Phaser phase.
@@ -5420,6 +6577,26 @@ var KGAD;
             return (_x < 0 || _y < 0 || _x >= this.width || _y >= this.height);
         };
         /**
+         *  Check if you can perch at the given tile.
+         */
+        GameMap.prototype.canPerchInPixels = function (x, y) {
+            var result = false;
+            var collidingTiles = this.perchLayer.getTiles(x, y, GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT, false, false);
+            if (collidingTiles == null || collidingTiles.length === 0) {
+                result = false;
+            }
+            else {
+                for (var i = 0, l = collidingTiles.length; i < l; ++i) {
+                    var tile = collidingTiles[i];
+                    if (this.checkProperty(tile.properties, 'perch')) {
+                        result = true;
+                        break;
+                    }
+                }
+            }
+            return result;
+        };
+        /**
          *  Check if the given tile coordinate is a wall.
          */
         GameMap.prototype.isWall = function (x, y) {
@@ -5458,9 +6635,14 @@ var KGAD;
             for (var i = 0, l = this.tilemap.layers.length; i < l; ++i) {
                 var layerData = this.tilemap.layers[i];
                 var isCollisionLayer = false;
+                var isPerchLayer = false;
                 var isVisible = true;
                 if (layerData.properties.hasOwnProperty("collision_layer")) {
                     isCollisionLayer = true;
+                    isVisible = false;
+                }
+                else if (layerData.properties.hasOwnProperty("perch_layer")) {
+                    isPerchLayer = true;
                     isVisible = false;
                 }
                 var layer = this.tilemap.createLayer(layerData.name, layerData.widthInPixels, layerData.heightInPixels);
@@ -5471,14 +6653,31 @@ var KGAD;
                     var tiles = layer.getTiles(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
                     for (var j = 0, k = tiles.length; j < k; ++j) {
                         var tile = tiles[j];
-                        if (!this.checkProperty(tile.properties, "can_pass", true)) {
+                        var canPass = this.checkProperty(tile.properties, "can_pass", true);
+                        if (!canPass) {
                             tile.canCollide = true;
                             if (indices.indexOf(tile.index) < 0) {
                                 this.tilemap.setCollisionByIndex(tile.index, true, layer.index, true);
                                 indices.push(tile.index);
                             }
                         }
-                        else if (this.checkProperty(tile, "spawn_point")) {
+                        else {
+                            var collides = [
+                                this.checkProperty(tile.properties, "checkCollision.up"),
+                                this.checkProperty(tile.properties, "checkCollision.down"),
+                                this.checkProperty(tile.properties, "checkCollision.left"),
+                                this.checkProperty(tile.properties, "checkCollision.right")
+                            ];
+                            if (collides[0])
+                                tile.collideUp = true;
+                            if (collides[1])
+                                tile.collideDown = true;
+                            if (collides[2])
+                                tile.collideLeft = true;
+                            if (collides[3])
+                                tile.collideRight = true;
+                        }
+                        if (this.checkProperty(tile, "spawn_point")) {
                             this.heroSpawn = new Phaser.Point(tile.x, tile.y);
                         }
                         else if (this.checkProperty(tile, "king_spawn_point")) {
@@ -5488,6 +6687,9 @@ var KGAD;
                             this.enemySpawns.push(new Phaser.Point(tile.x, tile.y));
                         }
                     }
+                }
+                else if (isPerchLayer) {
+                    this.perchLayer = layer;
                 }
                 if (isVisible) {
                 }
@@ -6146,13 +7348,14 @@ var KGAD;
         /**
          *  Attempts to find the shortest path from one point to another.
          */
-        Pathfinding.prototype.findPath = function (from, to, fullSearch) {
+        Pathfinding.prototype.findPath = function (from, to, fullSearch, customWeights) {
             if (fullSearch === void 0) { fullSearch = false; }
+            if (customWeights === void 0) { customWeights = []; }
             this.createGrid();
             var start = this.graph.grid[from.x][from.y];
             var end = this.graph.grid[to.x][to.y];
             if (!fullSearch) {
-                var miniGrid = this.createMiniGrid(from, to);
+                var miniGrid = this.createMiniGrid(from, to, customWeights);
                 var path = astar.search(miniGrid, start, end);
             }
             if (fullSearch || path.length === 0) {
@@ -6197,7 +7400,8 @@ var KGAD;
             }
             return this.graph.grid[x][y];
         };
-        Pathfinding.prototype.createMiniGrid = function (from, to) {
+        Pathfinding.prototype.createMiniGrid = function (from, to, custom) {
+            if (custom === void 0) { custom = []; }
             var minX = Math.min(from.x, to.x);
             var minY = Math.min(from.y, to.y);
             var maxX = Math.max(from.x, to.x);
@@ -6211,6 +7415,12 @@ var KGAD;
                 grid[j] = [];
                 for (var y = minY, k = 0; y < maxY; ++y, ++k) {
                     grid[j][k] = this.graph.grid[j][k].weight;
+                }
+            }
+            for (var i = 0, l = custom.length; i < l; ++i) {
+                var node = custom[i];
+                if (node && node.x >= 0 && node.y >= 0 && node.x < width && node.y < height) {
+                    grid[node.x][node.y] = node.weight;
                 }
             }
             return new Graph(grid, { diagonal: false });

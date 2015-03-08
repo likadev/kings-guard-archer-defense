@@ -11,14 +11,18 @@ module KGAD {
         protected startingDirection: Directions;
         protected damageTween: Phaser.Tween;
         protected currentTarget: Enemy;
-        protected engageRange: number;
-        protected weapon: Weapon;
+        public engageRange: number;
+        public weapon: Weapon;
+        public canMove: boolean;
+        public isRanged: boolean;
+        public canPerch: boolean;
+        public isPerched: boolean;
 
         constructor(game: Phaser.Game, x: number, y: number, key?: string, frame?: any) {
             super(game, x, y, key, frame);
 
             this.movementSpeed = 50;
-            this.health = 3;
+            this.health = 1;
             this.engageRange = 128;
         }
 
@@ -27,7 +31,7 @@ module KGAD {
 
             this.hasHealthBar = true;
 
-            this.weapon = new Weapon(this.game, 'short_sword', {
+            this.weapon = new Weapon(this.game, 'basic_arrow', {
                 cooldown: 1500,
                 range: 36,
                 backSwing: 500,
@@ -41,18 +45,40 @@ module KGAD {
             this.blocked.add(this.onBlocked, this);
         }
 
-        addToWorld(): void {
-            super.addToWorld();
+        addToWorld(force: boolean = false): void {
+            if (this.canPerch) {
+                force = true;
+            }
+
+            super.addToWorld(force);
+
+            this.hasShadow = true;
 
             this.startingPoint = this.map.toPixels(this.map.fromPixels(this.x, this.y)).add(16, 16);
             this.startingDirection = this.direction;
+
+            OccupiedGrid.add(this);
         }
 
         private onBlocked(occupants: AnimatedSprite[]) {
+            var hasEnemies = false;
+            var tilePositions = [];
+            for (var i = 0, l = occupants.length; i < l; ++i) {
+                var occupant = occupants[i];
+                tilePositions.push(this.map.fromPixels(occupant.position));
+                if (occupant.alliance !== this.alliance) {
+                    this.threatTable.addThreat(occupant, 5);
+                    hasEnemies = true;
+                }
+            }
+
             this.unsetCurrentPath();
 
             if (this.currentTarget == null) {
-                this.goHome();
+                this.currentTarget = <Enemy>this.threatTable.getHighestThreatTarget();
+                if (this.currentTarget == null) {
+                    this.goHome(tilePositions);
+                }
             }
         }
 
@@ -106,6 +132,11 @@ module KGAD {
             }
 
             if (this.health <= 0) {
+                if (this.shadowSprite) {
+                    this.shadowSprite.kill();
+                    this.hasShadow = false;
+                }
+
                 if (!OccupiedGrid.remove(this)) {
                     console.error("Mercenary was not removed!");
                 }
@@ -124,7 +155,13 @@ module KGAD {
 
                 this.action = Actions.Dying;
                 this.direction = Directions.Down;
-                this.updateAnimation(onAnimationComplete);
+                super.showDeathAnimation();
+
+                this.game.time.events.add(1000,() => {
+                    if (this.alive) {
+                        onAnimationComplete();
+                    }
+                }, this);
             }
 
             if (this.damageTween != null && this.damageTween.isRunning) {
@@ -160,7 +197,7 @@ module KGAD {
                         }
                     }
                 }
-                else {
+                else if (this.canMove) {
                     this.moveTowardsTarget();
                 }
             }
@@ -181,7 +218,26 @@ module KGAD {
             }
         }
 
-        private goHome() {
+        private centerOnTile(onComplete?: () => any) {
+            var centerX = Math.floor(this.x / OccupiedGrid.NODE_SIZE) * OccupiedGrid.NODE_SIZE + OccupiedGrid.NODE_SIZE;
+            var centerY = Math.floor(this.y / OccupiedGrid.NODE_SIZE) * OccupiedGrid.NODE_SIZE + OccupiedGrid.NODE_SIZE;
+
+            var distance = Phaser.Point.distance(this.position, new Phaser.Point(centerX, centerY));
+            var timeToMove = (distance / this.movementSpeed) * 1000.0;
+            var angle = this.game.physics.arcade.angleBetween(this.position, new Phaser.Point(centerX, centerY));
+
+            this.face(MovementHelper.getDirectionFromAngle(angle));
+
+            var tween = this.game.add.tween(this).to({ x: centerX, y: centerY }, timeToMove, Phaser.Easing.Linear.None, false);
+            tween.onComplete.addOnce(() => {
+                if (onComplete) {
+                    onComplete();
+                }
+            });
+            tween.start();
+        }
+
+        private goHome(avoid: Phaser.Point[] = []) {
             var homePoint: Phaser.Point = this.startingPoint;
 
             var onComplete = () => {
@@ -189,8 +245,14 @@ module KGAD {
                 this.face(this.startingDirection);
             };
 
-            if (!this.pathfindTo(homePoint, null, onComplete)) {
-                onComplete();
+            var customPositions: CustomPathfindingGridNode[] = [];
+            for (var i = 0, l = avoid.length; i < l; ++i) {
+                var avoidPos = avoid[i];
+                customPositions.push(new CustomPathfindingGridNode(avoidPos.x, avoidPos.y, 0));
+            }
+
+            if (!this.pathfindTo(homePoint, null, onComplete, customPositions)) {
+                this.centerOnTile(onComplete);
             }
         }
 
@@ -225,7 +287,14 @@ module KGAD {
             if (distance <= this.weapon.range) {
                 this.weapon.lastFireTime = this.game.time.now;
 
-                this.currentTarget.inflictDamage(this.weapon.power, this);
+                if (this.isRanged) {
+                    var angle = this.game.physics.arcade.angleBetween(this, this.currentTarget);
+                    var projectiles = Game.Projectiles;
+                    projectiles.fire(this.x, this.y, this, this.weapon, 0, angle, this.canPerch);
+                }
+                else {
+                    this.currentTarget.inflictDamage(this.weapon.power, this);
+                }
             }
         }
     }

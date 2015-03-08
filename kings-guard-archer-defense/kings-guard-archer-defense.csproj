@@ -22,9 +22,16 @@
     <Content Include="assets\textures\characters\hero_spritesheet.png" />
     <Content Include="assets\textures\characters\hero_worksheet.png" />
     <Content Include="assets\textures\characters\king.png" />
+    <Content Include="assets\textures\characters\longbowman.png" />
     <Content Include="assets\textures\characters\tank_merc.png" />
     <Content Include="assets\textures\misc\black.png" />
+    <Content Include="assets\textures\misc\healthbar.png" />
+    <Content Include="assets\textures\misc\healthbar_frame.png" />
+    <Content Include="assets\textures\misc\merc_frame.png" />
+    <Content Include="assets\textures\misc\parchment.png" />
     <Content Include="assets\textures\misc\play_button.png" />
+    <Content Include="assets\textures\misc\ready_button.png" />
+    <Content Include="assets\textures\misc\shadow.png" />
     <Content Include="assets\textures\misc\skill_challenge_button.png" />
     <Content Include="assets\textures\weapons\basic_arrow.png" />
     <Content Include="assets\textures\weapons\basic_arrow_dead.png" />
@@ -66,6 +73,9 @@
     <TypeScriptCompile Include="src\game\ScriptEngine.ts" />
     <TypeScriptCompile Include="src\game\scripting\Script.ts" />
     <TypeScriptCompile Include="src\game\ThreatTable.ts" />
+    <TypeScriptCompile Include="src\gui\Button.ts" />
+    <TypeScriptCompile Include="src\gui\ButtonGroup.ts" />
+    <TypeScriptCompile Include="src\gui\PurchaseMenu.ts" />
     <TypeScriptCompile Include="src\input\Actions.ts" />
     <TypeScriptCompile Include="src\input\AnimationHelper.ts" />
     <TypeScriptCompile Include="src\input\Directions.ts" />
@@ -79,12 +89,14 @@
     <TypeScriptCompile Include="src\sprites\AnimationLoader.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\AnimationSpriteDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\EnemySpecification.ts" />
+    <TypeScriptCompile Include="src\sprites\conversion\MercenaryType.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\SpriteDefinition.ts" />
     <TypeScriptCompile Include="src\sprites\conversion\WeaponSpecification.ts" />
     <TypeScriptCompile Include="src\sprites\HealthBar.ts" />
     <TypeScriptCompile Include="src\sprites\helpers\CollisionHelper.ts" />
     <TypeScriptCompile Include="src\sprites\helpers\PathMovementMachine.ts" />
     <TypeScriptCompile Include="src\states\BootState.ts" />
+    <TypeScriptCompile Include="src\states\DemoState.ts" />
     <TypeScriptCompile Include="src\states\GameContext.ts" />
     <TypeScriptCompile Include="src\states\GameSimulationState.ts" />
     <TypeScriptCompile Include="src\states\MainMenuState.ts" />
@@ -121,6 +133,9 @@
     <Content Include="assets\textures\characters\enemy.sprites" />
     <Content Include="assets\textures\characters\hero.anim" />
     <Content Include="assets\textures\characters\hero.sprites" />
+    <Content Include="assets\data\mercenaries.json" />
+    <Content Include="assets\textures\characters\longbowman.anim" />
+    <Content Include="assets\textures\characters\longbowman.sprites" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

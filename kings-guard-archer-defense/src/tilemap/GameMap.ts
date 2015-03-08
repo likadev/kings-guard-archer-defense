@@ -17,6 +17,7 @@ module KGAD {
         private collision: Phaser.TilemapLayer;
         public pathfinder: Pathfinding;
         public enemySpawns: Phaser.Point[];
+        public perchLayer: Phaser.TilemapLayer;
 
         constructor(mapName: string) {
             this.game = Game.Instance;
@@ -104,7 +105,7 @@ module KGAD {
         /**
          *  Finds the shortest path from the given point to the given point (in tiles).
          */
-        public findPath(from: Phaser.Point, to: Phaser.Point, fullSearch: boolean = false): Phaser.Point[] {
+        public findPath(from: Phaser.Point, to: Phaser.Point, fullSearch: boolean = false, customNodes: CustomPathfindingGridNode[] = []): Phaser.Point[] {
             if (from.x < 0 || from.x >= this.width || from.y < 0 || from.y >= this.height) {
                 throw new RangeError("Pathfinding: 'from' coordinate is out of range: (" + from.x + ", " + from.y + ") width=" + this.width + ", height=" + this.height);
             }
@@ -113,7 +114,7 @@ module KGAD {
                 throw new RangeError("Pathfinding: 'to' coordinate is out of range: (" + to.x + ", " + to.y + ")");
             }
 
-            return this.pathfinder.findPath(from, to, fullSearch);
+            return this.pathfinder.findPath(from, to, fullSearch, customNodes);
         }
 
         /**
@@ -167,6 +168,29 @@ module KGAD {
         }
 
         /**
+         *  Check if you can perch at the given tile.
+         */
+        public canPerchInPixels(x: number, y: number): boolean {
+            var result = false;
+            var collidingTiles = this.perchLayer.getTiles(x, y, GameMap.TILE_WIDTH, GameMap.TILE_HEIGHT, false, false);
+
+            if (collidingTiles == null || collidingTiles.length === 0) {
+                result = false;
+            }
+            else {
+                for (var i = 0, l = collidingTiles.length; i < l; ++i) {
+                    var tile = collidingTiles[i];
+                    if (this.checkProperty(tile.properties, 'perch')) {
+                        result = true;
+                        break;
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        /**
          *  Check if the given tile coordinate is a wall.
          */
         public isWall(x: number, y: number): boolean {
@@ -210,9 +234,14 @@ module KGAD {
             for (var i = 0, l = this.tilemap.layers.length; i < l; ++i) {
                 var layerData: any = this.tilemap.layers[i];
                 var isCollisionLayer = false;
+                var isPerchLayer = false;
                 var isVisible = true;
                 if (layerData.properties.hasOwnProperty("collision_layer")) {
                     isCollisionLayer = true;
+                    isVisible = false;
+                }
+                else if (layerData.properties.hasOwnProperty("perch_layer")) {
+                    isPerchLayer = true;
                     isVisible = false;
                 }
 
@@ -227,14 +256,31 @@ module KGAD {
                     var tiles: Phaser.Tile[] = layer.getTiles(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
                     for (var j = 0, k = tiles.length; j < k; ++j) {
                         var tile: Phaser.Tile = tiles[j];
-                        if (!this.checkProperty(tile.properties, "can_pass", true)) {
+
+                        var canPass = this.checkProperty(tile.properties, "can_pass", true);
+
+                        if (!canPass) {
                             tile.canCollide = true;
                             if (indices.indexOf(tile.index) < 0) {
                                 this.tilemap.setCollisionByIndex(tile.index, true, layer.index, true);
                                 indices.push(tile.index);
                             }
                         }
-                        else if (this.checkProperty(tile, "spawn_point")) {
+                        else {
+                            var collides = [
+                                this.checkProperty(tile.properties, "checkCollision.up"),
+                                this.checkProperty(tile.properties, "checkCollision.down"),
+                                this.checkProperty(tile.properties, "checkCollision.left"),
+                                this.checkProperty(tile.properties, "checkCollision.right")
+                            ];
+
+                            if (collides[0]) tile.collideUp = true;
+                            if (collides[1]) tile.collideDown = true;
+                            if (collides[2]) tile.collideLeft = true;
+                            if (collides[3]) tile.collideRight = true;
+                        }
+
+                        if (this.checkProperty(tile, "spawn_point")) {
                             this.heroSpawn = new Phaser.Point(tile.x, tile.y);
                         }
                         else if (this.checkProperty(tile, "king_spawn_point")) {
@@ -244,6 +290,9 @@ module KGAD {
                             this.enemySpawns.push(new Phaser.Point(tile.x, tile.y));
                         }
                     }
+                }
+                else if (isPerchLayer) {
+                    this.perchLayer = layer;
                 }
 
                 if (isVisible) {

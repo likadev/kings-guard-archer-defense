@@ -16,8 +16,8 @@ module KGAD {
 
             this.ready = false;
 
-            this.centerX = this.centerX || this.world.centerX;
-            this.centerY = this.centerY || this.world.centerY;
+            this.centerX = this.centerX || Game.Width / 2;
+            this.centerY = this.centerY || Game.Height / 2;
         }
 
         preload(): void {

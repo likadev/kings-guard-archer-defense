@@ -28,6 +28,7 @@ module KGAD {
         }
 
         preload(): void {
+            this.game.load.json('mercenaries', 'assets/data/mercenaries.json');
             this.game.load.spritesheet('play_button', 'assets/textures/misc/play_button.png', 128, 64, 3);
             this.game.load.spritesheet('skill_challenge_button', 'assets/textures/misc/skill_challenge_button.png', 128, 64, 3);
 
