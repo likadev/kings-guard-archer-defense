@@ -1,0 +1,44 @@
+﻿{
+    "mercenaries": [
+        {
+            "key": "longbowman",
+            "cost": 12,
+            "ranged": true,
+            "baseArmor": 0,
+            "baseHealth": 2,
+            "canMove": false,
+            "canPerch": true,
+            "engageRange": 250,
+            "movementSpeed": 0,
+            "weapon": {
+                "key": "basic_arrow",
+                "basePower": 1,
+                "range": 250,
+                "frontSwing": 250,
+                "backSwing": 250,
+                "cooldown": 3000,
+                "projectileSpeed": 1000
+            }
+        },
+        {
+            "key": "tank_merc",
+            "cost": 50,
+            "ranged": false,
+            "baseArmor": 0,
+            "baseHealth": 5,
+            "canPerch": false,
+            "canMove": true,
+            "engageRange": 150,
+            "movementSpeed": 75,
+            "weapon": {
+                "key": "basic_arrow",
+                "basePower": 1,
+                "range": 250,
+                "frontSwing": 250,
+                "backSwing": 250,
+                "cooldown": 2000,
+                "projectileSpeed": 1000
+            }
+        }
+    ]
+}

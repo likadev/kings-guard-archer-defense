@@ -3,7 +3,7 @@
         "skill_challenge": {
             "waves": [
                 {
-                    "delay": 2000,
+                    "delay": 1000,
                     "sequence": [
                         {
                             "addEnemyTypes": [
@@ -12,7 +12,12 @@
                                 }
                             ],
                             "every": 10000,
-                            "times":  20
+                            "times": 10
+                        },
+                        {
+                            "delay": 2500,
+                            "every": 7500,
+                            "times": 14
                         }
                     ]
                 }
@@ -30,20 +35,22 @@
                                     "priority": 1
                                 }
                             ],
-                            "every": 6000,
-                            "times": 6
+                            "every": 5000,
+                            "times": 5
                         },
                         {
                             "every": 3000,
-                            "times": 4
+                            "times": 2
                         },
                         {
+                            "delay": 5000,
                             "every": 2500,
                             "times": 4
                         }
                     ]
                 },
                 {
+                    "delay": 0,
                     "sequence": [
                         {
                             "addEnemyTypes": [
@@ -52,8 +59,18 @@
                                     "priority": 1
                                 }
                             ],
-                            "every": 5000,
-                            "times":  20
+                            "every": 3500,
+                            "times": 9
+                        },
+                        {
+                            "delay": 5000,
+                            "every": 500,
+                            "times": 4
+                        },
+                        {
+                            "delay": 6000,
+                            "every": 2000,
+                            "times": 8
                         }
                     ]
                 },
@@ -66,18 +83,28 @@
                                     "priority": 1
                                 }
                             ],
-                            "every": 5000
+                            "every": 500,
+                            "times": 4
                         },
                         {
-                            "delay": 2000,
-                            "boss": true,
-                            "removeEnemyTypes": [
-                                {
-                                    "key": "enemy"
-                                }
-                            ],
-                            "addEnemyTypes": [ "boss" ],
-                            "spawnPointName": "boss"
+                            "delay": 5000,
+                            "every": 500,
+                            "times": 6
+                        },
+                        {
+                            "delay": 5000,
+                            "every": 1000,
+                            "times": 5
+                        },
+                        {
+                            "delay": 10000,
+                            "every": 2000,
+                            "times": 6
+                        },
+                        {
+                            "delay": 5000,
+                            "every": 500,
+                            "times": 8
                         }
                     ]
                 }
