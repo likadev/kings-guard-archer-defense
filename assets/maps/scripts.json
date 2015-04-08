@@ -26,7 +26,27 @@
         "level_1": {
             "waves": [
                 {
-                    "delay": 0,
+                    "delay": 1000,
+                    "sequence": [
+                        {
+                            "addEnemyTypes": [
+                                {
+                                    "key": "enemy",
+                                    "priority": 1
+                                }
+                            ],
+                            "every": 8000,
+                            "times": 5
+                        },
+                        {
+                            "delay": 5000,
+                            "every": 0,
+                            "times": 2
+                        }
+                    ]
+                },
+                {
+                    "delay": 2500,
                     "sequence": [
                         {
                             "addEnemyTypes": [
@@ -36,11 +56,11 @@
                                 }
                             ],
                             "every": 5000,
-                            "times": 5
+                            "times": 7
                         },
                         {
                             "every": 3000,
-                            "times": 2
+                            "times": 3
                         },
                         {
                             "delay": 5000,
