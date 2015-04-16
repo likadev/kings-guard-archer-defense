@@ -1,0 +1,46 @@
+This document contains the storyboard for King's Guard: Archer Defense's campaign mode.
+
+Once the user begins a new campaign file, they immediately begin a very simple training
+level. A quick demo plays demonstrating to the player how to fire his weapon at the
+target. The demo shows a quick shot (pressing the fire button and immediately releasing)
+and a charged shot (holding down the fire button and releasing).
+
+The training level begins. The player is limited to a 5x2 movement area. North of the
+player's position are three targets lined up side-by-side with a space in-between each
+one:
+
+
+  X X X                         Key:
+                                   X = Target
+ -------                           P = Player
+ |  P  |                           -, | = Impassable Walls
+ |     |
+ -------
+ 
+The "target" is a circular "dart board" that the player must hit. The player cannot move
+beyond the impassable walls, but can shoot over them.
+
+The player advances once they've destroyed all 3 targets. Each target has the same
+number of hit points that the player's fully charged weapon hits for.
+
+After the training level, a short cutscene plays. In the courtyard of a castle, 
+friendly soldiers are killed by invading troops. Once the prescence of the invading
+troops is revealed, a "crisis/desperate situation" music track plays. Once the friendly
+troops are killed, the invading troops are seen moving north out of sight.
+
+It fades out of the courtyard and into the throne room, where the king is sitting on his
+throne. The king, the player character, and a friendly soldier are in the room. A campy
+exchange takes place where the king orders the soldier to protect the citizens. The
+soldier protests and asks, what about you and your safety? The king tells him not to
+worry, because the captain of the King's Guard, [Player Name], is here. The soldier
+leaves.
+
+Enemy soldiers appear from the south, and the first wave starts. The "crisis" music 
+fades out and the level music starts playing. Unlike most levels, the player is not 
+given the opportunity to place mercenaries or spend upgrade points yet. First he has to 
+defeat a few soldiers as a gentle introduction.
+
+Once the first wave is complete, a friendly archer shows up, saying that he will help
+defend the king. This is the excuse to introduce the player to buying mercenaries and
+placing them on the map. The player will be prompted to place the mercenary in 
+advantageous positions, where they can fire without being fired upon.

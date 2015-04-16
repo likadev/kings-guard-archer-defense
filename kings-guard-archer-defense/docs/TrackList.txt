@@ -1,0 +1,18 @@
+This is a list of music needed for the game.
+
+- Main Menu
+    + Intro theme
+
+- Campaign 
+    + Training level theme
+    + Opening cutscene
+    + Level 1 - Throne Room
+    + Level 2 - Secret Underground Passage
+    + Level 3 - Plain
+    + -- Other levels to be determined.
+    + Ending/Credits
+
+- General
+    + Victory
+    + Defeat (Game Over)
+    + Boss Fight (final wave in each level)
